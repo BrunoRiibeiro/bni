@@ -28,3 +28,7 @@ Item top(Stack *p) {
 int is_empty(Stack *p) {
 	return p->top == 0;
 }
+
+int amount(Stack *p) {
+	return p->top;
+}
