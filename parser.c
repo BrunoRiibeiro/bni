@@ -9,38 +9,54 @@ int main(int argc, char *argv[]) {
 		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
 		return 1;
     }
-	char *domain_file_name = argv[1];
-	char *problem_file_name = argv[2];
+	char *domain_file_name = argv[1], *problem_file_name = argv[2];
 	
-	FILE *domain_file = fopen(domain_file_name, "r");
+	FILE *domain_file = fopen(domain_file_name, "r"), *problem_file = fopen(problem_file_name, "r");
 	if (domain_file == NULL) {
 		perror("Error opening domain file");
 		return 1;
+	} if (problem_file == NULL) {
+		perror("Erro opening problem file");
+		return 1;
 	}
 
-	Stack p, p_aux;
-	create_stack(&p, 1000);
-	create_stack(&p_aux, 100);
-	Item token;
-	Head h;
-	create_list(&h);
-	while (fscanf(domain_file, "%c", &token) != EOF) {
-		if (token == ' ' || token == '\n' || token == '\t') {
-			while (top(&p) != '(') {
-				insert_list(&h, top(&p));
-				pop(&p);
+	Stack domain, problem, p_aux;
+	create_stack(&domain, 1000), create_stack(&problem, 1000), create_stack(&p_aux, 100);
+	Item tokend, tokenp;
+	Head hd, hp;
+	create_list(&hd), create_list(&hp);
+	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
+		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
+			while (top(&problem) != '(')
+				insert_list(&hp, top(&problem)), pop(&problem);
+			if (strcmp_list(&hp, ":objects") == 0) {
+				for ( ; ; ) {
+					char count = 0, obj[100];
+					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')')
+						count++;
+					if (obj[0] == ')') break;
+					scanf(" %[^)|^ |^\n|^\t]s", obj);
+					printf("%s - %d\n", obj, count);
+					if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
+				}
 			}
-			if (strcmp_list(&h, ":predicates") == 0) {
+			free_list(&hp);
+		}
+		push(&problem, tokenp);
+	}
+	while (fscanf(domain_file, "%c", &tokend) != EOF) {
+		if (tokend == ' ' || tokend == '\n' || tokend == '\t') {
+			while (top(&domain) != '(')
+				insert_list(&hd, top(&domain)),	pop(&domain);
+			if (strcmp_list(&hd, ":predicates") == 0) {
 				push(&p_aux, '(');
 				char count = 0;
-				while (fscanf(domain_file, "%c", &token) && !is_empty(&p_aux)) {
+				while (fscanf(domain_file, "%c", &tokend) && !is_empty(&p_aux)) {
 					char str[100], buff[100];
-					if (token == '?') count++;
-					if (token == '(') {
-						push(&p_aux, token);
-						fscanf(domain_file, "%s", str);
-					}
-					else if (token == ')') {
+					if (tokend == '?') count++;
+					if (tokend == '(')
+						push(&p_aux, tokend), fscanf(domain_file, "%s", str);
+					else if (tokend == ')') {
 						pop(&p_aux);
 						if (!is_empty(&p_aux)) {
 							sprintf(buff, "printf 'int %s' >> domain.c", str);
@@ -53,10 +69,10 @@ int main(int argc, char *argv[]) {
 					}
 				}
 			}
-			free_list(&h);
+			free_list(&hd);
 		}
-		push(&p, token);
+		push(&domain, tokend);
 	}
-	fclose(domain_file);
+	fclose(domain_file), fclose(problem_file);
 	return 0;
 }
