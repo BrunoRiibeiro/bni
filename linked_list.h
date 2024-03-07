@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 typedef char Item;
 typedef struct Node {
 	Item data;
@@ -44,7 +47,9 @@ int strcmp_list(Head *h, const char *str) {
 	int i = 0;
 	while (str[i++] == aux->begin->data) {
 		aux->begin = aux->begin->next;
-		if (str[i] == '\0' && aux->begin == NULL) return 0;
+		if (str[i] == '\0' && aux->begin == NULL) {
+			return 0;
+		}
 	}
 	return 1;
 }

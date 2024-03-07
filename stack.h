@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 typedef char Item;
 typedef struct Stack {
 	Item *v;
