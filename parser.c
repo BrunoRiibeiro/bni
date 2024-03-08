@@ -28,10 +28,13 @@ int main(int argc, char *argv[]) {
 	create_list(&hd), create_list(&hp);
 	SymbolTable st;
 	create_st(&st);
+	char *buffer = NULL;
+	size_t size_allocated = 0;
 
 	// Problem parser
 
-	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
+	while (fscanf(problem_file, "%c", &tokenp)) {
+		if (tokenp == ';') getline(&buffer, &size_allocated, problem_file);
 		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
 			while (top(&problem) != '(')
 				insert_list(&hp, top(&problem)), pop(&problem);
@@ -46,46 +49,47 @@ int main(int argc, char *argv[]) {
 					if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
 				}
 				print_st(&st);
+				break;
 			}
 			free_list(&hp);
 		}
 		push(&problem, tokenp);
 	}
-	
-	
-	
-	
+	free_list(&hp);
+
 	// Domain parser
 	
-//	while (fscanf(domain_file, "%c", &tokend) != EOF) {
-//		if (tokend == ' ' || tokend == '\n' || tokend == '\t') {
-//			while (top(&domain) != '(')
-//				insert_list(&hd, top(&domain)),	pop(&domain);
-//			if (strcmp_list(&hd, ":predicates") == 0) {
-//				push(&p_aux, '(');
-//				char count = 0;
-//				while (fscanf(domain_file, "%c", &tokend) && !is_empty(&p_aux)) {
-//					char str[100], buff[100];
-//					if (tokend == '?') count++;
-//					if (tokend == '(')
-//						push(&p_aux, tokend), fscanf(domain_file, "%s", str);
-//					else if (tokend == ')') {
-//						pop(&p_aux);
-//						if (!is_empty(&p_aux)) {
-//							sprintf(buff, "printf 'int %s' >> domain.c", str);
-//							system(buff);
-//							for (int i = 0; i < count; i++)
-//								system("printf '[]' >> domain.c");
-//							system("echo ';' >> domain.c");
-//							count = 0;
-//						}
-//					}
-//				}
-//			}
-//			free_list(&hd);
-//		}
-//		push(&domain, tokend);
-//	}
+	while (fscanf(domain_file, "%c", &tokend) != EOF) {
+		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+		if (tokend == ' ' || tokend == '\n' || tokend == '\t') {
+			while (top(&domain) != '(')
+				insert_list(&hd, top(&domain)),	pop(&domain);
+			if (strcmp_list(&hd, ":predicates") == 0) {
+				push(&p_aux, '(');
+				char count = 0;
+				while (fscanf(domain_file, "%c", &tokend) && !is_empty(&p_aux)) {
+					if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+					char str[100], buff[100];
+					if (tokend == '?') count++;
+					if (tokend == '(')
+						push(&p_aux, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
+					else if (tokend == ')') {
+						pop(&p_aux);
+						if (!is_empty(&p_aux)) {
+							sprintf(buff, "printf 'int %s' >> domain.c", str);
+							system(buff);
+							for (int i = 0; i < count; i++)
+								system("printf '[]' >> domain.c");
+							system("echo ';' >> domain.c");
+							count = 0;
+						}
+					}
+				}
+			}
+			free_list(&hd);
+		}
+		push(&domain, tokend);
+	}
 	fclose(domain_file), fclose(problem_file);
 	return 0;
 }
