@@ -34,21 +34,27 @@ int main(int argc, char *argv[]) {
 	// Problem parser
 
 	while (fscanf(problem_file, "%c", &tokenp)) {
+		// ignorar os comentário
 		if (tokenp == ';') getline(&buffer, &size_allocated, problem_file);
+		// tratamento dos dados
 		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
 			while (top(&problem) != '(')
 				insert_list(&hp, top(&problem)), pop(&problem);
+			// Leitura e tratamento dos dados do "objects" até encontrar ")"
 			if (strcmp_list(&hp, ":objects") == 0) {
 				for ( ; ; ) {
 					char count = 0, obj[100];
 					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')')
 						count++;
 					if (obj[0] == ')') break;
+					// Ler até encontrar ")" ou espaco ou quebra de linha ou tab
 					fscanf(problem_file, " %[^)|^ |^\n|^\t]s", obj);
+					// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos
 					add_st(&st, obj, count);
 					if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
 				}
 				print_st(&st);
+				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects"
 				break;
 			}
 			free_list(&hp);
