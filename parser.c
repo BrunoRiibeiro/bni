@@ -21,15 +21,15 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	Stack domain, problem, p_aux;
+	Stack domain, problem, p_aux; // stacks for tokenize domain and problem files p_aux is used to parenthesis match in :predicates.
 	create_stack(&domain, 1000), create_stack(&problem, 1000), create_stack(&p_aux, 100);
-	Item tokend, tokenp;
-	Head hd, hp;
+	Item tokend, tokenp; // token variables for domain and problem files.
+	Head hd, hp; // linked lists for string reading in domain and problem files.
 	create_list(&hd), create_list(&hp);
 	SymbolTable st;
 	create_st(&st);
-	char *buffer = NULL;
-	size_t size_allocated = 0;
+	char *buffer = NULL; // buffer for getline() function on comments ignoring.
+	size_t size_allocated = 0; // size for getline() function on comments ignoring.
 
 	// Problem parser
 
