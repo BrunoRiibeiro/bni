@@ -53,6 +53,16 @@ void free_st(SymbolTable *h) {
 	}
 }
 
+unsigned long long int get_qtd(SymbolTable *h, const char *id) {
+	Node_st *aux = h->begin;
+	while (aux != NULL) {
+		if (strcmp(aux->data.id, id) == 0)
+			return aux->data.qtd;
+		aux = aux->next;
+	}
+	return 0;
+}
+
 void print_st(SymbolTable *h) {
 	Node_st *aux = h->begin;
 	while (aux != NULL) {
