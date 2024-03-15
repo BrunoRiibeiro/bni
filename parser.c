@@ -5,6 +5,22 @@
 #include "linked_list.h"
 #include "stack.h"
 
+void create_enums(SymbolTable *st) {
+	Node_st *aux = st->begin;
+	char buff[100];
+	while (aux) {
+		sprintf(buff, "printf 'enum %s {\n' >> domain.c", aux->data.id);
+		system(buff);
+		Node_str *obj_list = aux->data.list.begin;
+		while (obj_list) {
+			sprintf(buff, "printf '\t%s,\n' >> domain.c", obj_list->data), system(buff);
+			obj_list = obj_list->next;
+		}
+		system("echo '};' >> domain.c");
+		aux = aux->next;
+	}
+}
+
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
 		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
@@ -26,6 +42,8 @@ int main(int argc, char *argv[]) {
 	Item tokend, tokenp; // Variáveis de token para arquivos de domínio e problemas.
 	Head hd, hp; // Linked lists para leitura de strings em arquivos de domínio e problemas.
 	create_list(&hd), create_list(&hp);
+	Head_str hl;
+	create_list_str(&hl);
 	SymbolTable st;
 	create_st(&st);
 	char *buffer = NULL; // Buffer para a função getline() em comentários ignorados.
@@ -46,14 +64,17 @@ int main(int argc, char *argv[]) {
 				for ( ; ; ) {
 					// count = how many objects are in one line.
 					// obj = object type string.
-					char count = 0, obj[100];
-					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')')
+					char count = 0, obj[100], buff[100];
+					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')') {
+						insert_list_str(&hl, obj);
 						count++;
+					}
 					// Verifica se existe um tipo dos objetos lidos.
 					if (obj[0] == '-') obj_sentinel = 1;
 					// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj".
 					if (!obj_sentinel) {
-						sprintf(obj, "obj"), add_st(&st, obj, count); 
+						sprintf(obj, "obj"), add_st(&st, obj, count, &hl); 
+						free_list_str(&hl);
 						break;
 					}
 					// Bloco de :objects termina com um '\n' antes do ')'.
@@ -61,10 +82,12 @@ int main(int argc, char *argv[]) {
 					// Ler até encontrar ")" ou espaco ou quebra de linha ou tab.
 					fscanf(problem_file, " %[^)|^ |^\n|^\t]s", obj);
 					// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos.
-					add_st(&st, obj, count);
+					add_st(&st, obj, count, &hl);
+					free_list_str(&hl);
 					if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
 				}
 				print_st(&st);
+				create_enums(&st);
 				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
 				break;
 			}
@@ -72,7 +95,6 @@ int main(int argc, char *argv[]) {
 		}
 		push(&problem, tokenp);
 	}
-	free_list(&hp);
 
 	// Domain parser
 	
