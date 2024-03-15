@@ -47,9 +47,8 @@ int strcmp_list(Head *h, const char *str) {
 	int i = 0;
 	while (str[i++] == aux->begin->data) {
 		aux->begin = aux->begin->next;
-		if (str[i] == '\0' && aux->begin == NULL) {
+		if (str[i] == '\0' && aux->begin == NULL)
 			return 0;
-		}
 	}
 	return 1;
 }
