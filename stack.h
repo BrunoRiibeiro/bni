@@ -27,7 +27,7 @@ Item top(Stack *p) {
 	return p->v[p->top-1];
 }
 
-int is_empty(Stack *p) {
+int is_empty_stack(Stack *p) {
 	return p->top == 0;
 }
 
