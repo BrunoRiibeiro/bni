@@ -6,12 +6,12 @@
 #include "stack.h"
 
 void create_enums(SymbolTable *st) {
-	Node_st *aux = st->begin;
+	Node_st *aux = st->head;
 	char buff[100];
 	while (aux) {
 		sprintf(buff, "printf 'enum %s {\n' >> domain.c", aux->data.id);
 		system(buff);
-		Node_str *obj_list = aux->data.list.begin;
+		Node_str *obj_list = aux->data.list.head;
 		while (obj_list) {
 			sprintf(buff, "printf '\t%s,\n' >> domain.c", obj_list->data), system(buff);
 			obj_list = obj_list->next;
@@ -40,41 +40,38 @@ int main(int argc, char *argv[]) {
 	Stack domain, problem, p_aux; // Stacks para tokenizar arquivos de domínio e problemas. 'p_aux' é usado para fazer a correspondência de parênteses em ':predicates'.
 	create_stack(&domain, 1000), create_stack(&problem, 1000), create_stack(&p_aux, 100);
 	Item tokend, tokenp; // Variáveis de token para arquivos de domínio e problemas.
-	Head hd, hp; // Linked lists para leitura de strings em arquivos de domínio e problemas.
-	create_list(&hd), create_list(&hp);
-	Head_str hl;
-	create_list_str(&hl);
-	SymbolTable st;
-	create_st(&st);
+	LinkedList *hd = create_list(), *hp = create_list(); // Linked lists para leitura de strings em arquivos de domínio e problemas.
+	LinkedList_str *hl = create_list_str();
+	SymbolTable *st = create_st();
 	char *buffer = NULL; // Buffer para a função getline() em comentários ignorados.
 	size_t size_allocated = 0; // Tamanho alocado para a função getline() em comentários ignorados.
 	char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
 
-	// Problem parser
+	// Problem parser :objects
 
 	while (fscanf(problem_file, "%c", &tokenp)) {
 		// Ignorar os comentário.
 		if (tokenp == ';') getline(&buffer, &size_allocated, problem_file);
 		// Tratamento dos dados.
 		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
-			while (top(&problem) != '(')
-				insert_list(&hp, top(&problem)), pop(&problem);
+			while (!is_empty_stack(&problem) && top(&problem) != '(')
+				insert_list(hp, top(&problem)), pop(&problem);
 			// Tratamento dos dados do  bloco "objects" até encontrar ")".
-			if (strcmp_list(&hp, ":objects") == 0) {
+			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
 				for ( ; ; ) {
 					// count = how many objects are in one line.
 					// obj = object type string.
 					char count = 0, obj[100], buff[100];
 					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')') {
-						insert_list_str(&hl, obj);
+						insert_list_str(hl, obj);
 						count++;
 					}
 					// Verifica se existe um tipo dos objetos lidos.
 					if (obj[0] == '-') obj_sentinel = 1;
 					// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj".
 					if (!obj_sentinel) {
-						sprintf(obj, "obj"), add_st(&st, obj, count, &hl); 
-						free_list_str(&hl);
+						sprintf(obj, "obj"), add_st(st, obj, count, hl); 
+						free_list_str(hl);
 						break;
 					}
 					// Bloco de :objects termina com um '\n' antes do ')'.
@@ -82,16 +79,16 @@ int main(int argc, char *argv[]) {
 					// Ler até encontrar ")" ou espaco ou quebra de linha ou tab.
 					fscanf(problem_file, " %[^)|^ |^\n|^\t]s", obj);
 					// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos.
-					add_st(&st, obj, count, &hl);
-					free_list_str(&hl);
+					add_st(st, obj, count, hl);
+					free_list_str(hl);
 					if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
 				}
-				print_st(&st);
-				create_enums(&st);
+				print_st(st);
+				create_enums(st);
 				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
 				break;
 			}
-			free_list(&hp);
+			free_list(hp);
 		}
 		push(&problem, tokenp);
 	}
@@ -104,13 +101,13 @@ int main(int argc, char *argv[]) {
 		// Inicia o tratamento dos dados do domínio.
 		if (tokend == ' ' || tokend == '\n' || tokend == '\t') {
 			while (top(&domain) != '(')
-				insert_list(&hd, top(&domain)),	pop(&domain);
+				insert_list(hd, top(&domain)),	pop(&domain);
 			// Tratamento dos dados do  bloco "predicates".
-			if (strcmp_list(&hd, ":predicates") == 0) {
+			if (strcmp_list(hd, ":predicates") == 0) {
 				push(&p_aux, '(');
 				// count = quantos '?' em uma linha.
 				char count = 0;
-				while (fscanf(domain_file, "%c", &tokend) && !is_empty(&p_aux)) {
+				while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(&p_aux)) {
 					// Ignora comentários dentro do bloco.
 					if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 					// str = nome do predicado.
@@ -126,7 +123,7 @@ int main(int argc, char *argv[]) {
 					if (tokend == '?') count++;
 					else if (tokend == '-') {
 						fscanf(domain_file, " %[^)|^ ]s", str);
-						sprintf(buff, "printf '[%lld]' >> domain.c", get_qtd(&st, str));
+						sprintf(buff, "printf '[%lld]' >> domain.c", get_qtd(st, str));
 						for (int i = 0; i < count; i++)
 							system(buff);
 						count = 0;
@@ -138,10 +135,10 @@ int main(int argc, char *argv[]) {
 					}
 					else if (tokend == ')') {
 						pop(&p_aux);
-						if (is_empty(&p_aux)) break;
+						if (is_empty_stack(&p_aux)) break;
 						else if (!obj_sentinel) {
 							sprintf(str, "obj"); 
-							sprintf(buff, "printf '[%lld]' >> domain.c", get_qtd(&st, str));
+							sprintf(buff, "printf '[%lld]' >> domain.c", get_qtd(st, str));
 							for (int i = 0; i < count; i++)
 								system(buff);
 							count = 0;
@@ -150,10 +147,55 @@ int main(int argc, char *argv[]) {
 					}
 				}
 			}
-			free_list(&hd);
+			free_list(hd);
 		}
 		push(&domain, tokend);
 	}
+
+
+	// Problem parser :init
+
+	system("echo 'int main(void) {' >> domain.c");
+	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
+		// Ignorar os comentário.
+		if (tokenp == ';') getline(&buffer, &size_allocated, problem_file);
+		// Tratamento dos dados.
+		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
+			// Transfere os tokens da pilha para a lista, para assim serem lidos como string (strcmp_list).
+			while (!is_empty_stack(&problem) && top(&problem) != '(')
+				insert_list(hp, top(&problem)), pop(&problem);
+			// Tratamento dos dados do  bloco ":init" até encontrar ")".
+			if (!is_empty_list(hp) && strcmp_list(hp, ":init") == 0) {
+				push(&p_aux, '(');
+				while (fscanf(problem_file, "%c", &tokenp) && !is_empty_stack(&p_aux)) {
+					// Ignora comentários dentro do bloco.
+					if (tokenp == ';') getline(&buffer, &size_allocated, domain_file);
+					// str = nome do predicado.
+					// buff = string para ser printada no arquivo pela função system.
+					char str[100], buff[100];
+					if (tokenp == ' ' && amount(&p_aux) == 2) {
+						fscanf(problem_file, "%[^)|^ ]s", str);
+						sprintf(buff, "printf '[%s]' >> domain.c", str);
+						system(buff);
+
+					}
+					else if (tokenp == '(') {
+						push(&p_aux, tokenp), fscanf(problem_file, "%[^)|^ ]s", str);
+						sprintf(buff, "printf '\t%s' >> domain.c", str);
+						system(buff);
+					}
+					else if (tokenp == ')') {
+						pop(&p_aux);
+						if (is_empty_stack(&p_aux)) break;
+						system("echo ' = true;' >> domain.c");
+					}
+				}
+			}
+			free_list(hp);
+		}
+		push(&problem, tokenp);
+	}
+	system("echo '\treturn 0;\n}' >> domain.c");
 	fclose(domain_file), fclose(problem_file);
 	return 0;
 }
