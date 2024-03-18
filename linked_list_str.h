@@ -8,31 +8,33 @@ typedef struct Node_str {
 	struct Node_str *next;
 }Node_str;
 
-typedef struct Head_str{
-	Node_str *begin;
-	Node_str *end;
-}Head_str;
+typedef struct LinkedList_str{
+	Node_str *head;
+	Node_str *tail;
+}LinkedList_str;
 
-int create_list_str(Head_str *h) {
-	h->begin = NULL;
-	h->end = NULL;
-	return 1;
+LinkedList_str* create_list_str() {
+	LinkedList_str *new_list = malloc(sizeof(LinkedList_str));
+	if (new_list == NULL) return 0;
+	new_list->head = NULL;
+	new_list->tail = NULL;
+	return new_list;
 }
 
-int first_insert(Head_str *h, Item_str *e) {
+int first_insert(LinkedList_str *h, Item_str *e) {
 	Node_str *new_node = malloc(sizeof(Node_str));
 	if (new_node == NULL) return 0;
 	char *item_cp = (char*)malloc(sizeof(char));
 	strcpy(item_cp, e);
 	new_node->data = (const char*)item_cp;
 	new_node->next = NULL;
-	h->begin = new_node;
-	h->end = new_node;
+	h->head = new_node;
+	h->tail = new_node;
 	return 1;
 }
 
-int insert_list_str(Head_str *h, Item_str *e) {
-	if (h->begin == NULL) {
+int insert_list_str(LinkedList_str *h, Item_str *e) {
+	if (h->head == NULL) {
 		first_insert(h, e);
 		return 1;
 	}
@@ -41,22 +43,22 @@ int insert_list_str(Head_str *h, Item_str *e) {
 	char *item_cp = (char*)malloc(sizeof(char));
 	strcpy(item_cp, e);
 	new_node->data = (const char*)item_cp;
-	new_node->next = h->end->next;
-	h->end->next = new_node;
-	h->end = new_node;
+	new_node->next = h->tail->next;
+	h->tail->next = new_node;
+	h->tail = new_node;
 	return 1;
 }
 
-void free_list_str(Head_str *h) {
-	while (h->begin != NULL) {
-		Node_str *aux = h->begin;
-		h->begin = h->begin->next;
+void free_list_str(LinkedList_str *h) {
+	while (h->head != NULL) {
+		Node_str *aux = h->head;
+		h->head = h->head->next;
 		free(aux);
 	}
 }
 
-void print_list_str(Head_str *h) {
-	Node_str *aux = h->begin;
+void print_list_str(LinkedList_str *h) {
+	Node_str *aux = h->head;
 	while (aux != NULL) {
 		printf("%s ", aux->data);
 		aux = aux->next;

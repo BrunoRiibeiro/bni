@@ -7,34 +7,40 @@ typedef struct Node {
 	struct Node *next;
 }Node;
 
-typedef struct Head{
-	Node *begin;
-}Head;
+typedef struct LinkedList{
+	Node *head;
+}LinkedList;
 
-int create_list(Head *h) {
-	h->begin = NULL;
-	return 1;
+LinkedList* create_list() {
+	LinkedList *new_list = malloc(sizeof(LinkedList));
+	if (new_list == NULL) return NULL;
+	new_list->head = NULL;
+	return new_list;
 }
 
-int insert_list(Head *h, Item e) {
+int insert_list(LinkedList *h, Item e) {
 	Node *new_node = malloc(sizeof(Node));
 	if (new_node == NULL) return 0;
 	new_node->data = e;
-	new_node->next = h->begin;
-	h->begin = new_node;
+	new_node->next = h->head;
+	h->head = new_node;
 	return 1;
 }
 
-void free_list(Head *h) {
-	while (h->begin != NULL) {
-		Node *aux = h->begin;
-		h->begin = h->begin->next;
+int is_empty_list(LinkedList *h) {
+	return h->head == NULL;
+}
+
+void free_list(LinkedList *h) {
+	while (h->head != NULL) {
+		Node *aux = h->head;
+		h->head = h->head->next;
 		free(aux);
 	}
 }
 
-void print_list(Head *h) {
-	Node *aux = h->begin;
+void print_list(LinkedList *h) {
+	Node *aux = h->head;
 	while (aux != NULL) {
 		printf("%c", aux->data);
 		aux = aux->next;
@@ -42,12 +48,12 @@ void print_list(Head *h) {
 	printf("\n");
 }
 
-int strcmp_list(Head *h, const char *str) {
-	Head *aux = h;
-	int i = 0;
-	while (str[i++] == aux->begin->data) {
-		aux->begin = aux->begin->next;
-		if (str[i] == '\0' && aux->begin == NULL)
+int strcmp_list(LinkedList *h, const char *str) {
+	LinkedList *aux = h;
+	char i = 0;
+	while (str[i++] == aux->head->data) {
+		aux->head = aux->head->next;
+		if (str[i] == '\0' && aux->head == NULL)
 			return 0;
 	}
 	return 1;
