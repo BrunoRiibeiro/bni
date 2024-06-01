@@ -70,11 +70,11 @@ int main(int argc, char *argv[]) {
 					while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')') {
 						hifen_to_underscore(obj);
 						insert(hl, obj);
-						count++;
-					}
+						count++; 
+					} 
 					// Verifica se existe um tipo dos objetos lidos.
-					if (obj[0] == '-') obj_sentinel = 1;
-					// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj".
+					if (obj[0] == '-') obj_sentinel = 1; 
+					// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj". 
 					if (!obj_sentinel) {
 						add_st(st, "obj", count, hl); 
 						free_list(hl);
@@ -94,12 +94,13 @@ int main(int argc, char *argv[]) {
 			}
 			free_list(hp);
 		}
-		push(problem, tokenp);
+		if (tokenp != ' ' && tokenp != '\t' && tokenp != '\n')
+			push(problem, tokenp);
 	}
 
 	// Domain parser
 	obj_sentinel = 0;	
-	while (fscanf(domain_file, "%c", &tokend) != EOF) {
+	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
 		// Ignora os comentários.
 		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 		// Inicia o tratamento dos dados do domínio.
@@ -134,7 +135,7 @@ int main(int argc, char *argv[]) {
 					free_list(hl);
 					if (fscanf(domain_file, "%c", &tokend) && tokend == ')') break;
 				}
-							}
+			}
 			// Tratamento dos dados do  bloco "predicates".
 			else if (strcmp_list(hd, ":predicates") == 0) {
 				create_enums(domainc, st);
@@ -177,9 +178,60 @@ int main(int argc, char *argv[]) {
 					}
 				}
 			}
+			else if (strcmp_list(hd, ":action") == 0) {
+				LinkedList *ha = create_list();
+				push(parenthesis_stack, '(');
+				char str[100];
+				fscanf(domain_file, "%s", str);
+				hifen_to_underscore(str);
+				fprintf(domainc, "struct %s {\n", str);
+				while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
+					if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+					if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(')
+						while (strcmp(top(domain), "("))
+							insert(ha, top(domain)), pop(domain);
+					if (strcmp_list(ha, ":parameters") == 0)
+						while (fscanf(domain_file, "%c", &tokend)) {
+							if (tokend == ')') break;
+							else if (tokend == '?') {
+								char parameters[100];
+								fscanf(domain_file, "%[^)|^ ]s", parameters);
+								fprintf(domainc, "\tunsigned long %s;\n", parameters);
+							}
+						}
+					else if (strcmp_list(ha, ":precondition") == 0)
+						while (fscanf(domain_file, "%c", &tokend)) {
+							if (tokend == '(') push(parenthesis_stack, tokend);
+							else if (tokend == ')') {
+								pop(parenthesis_stack);
+								if (amount(parenthesis_stack) == 1) break;
+							}
+						}
+					else if (strcmp_list(ha, ":effect") == 0)
+						while (fscanf(domain_file, "%c", &tokend)) {
+							if (tokend == '(') push(parenthesis_stack, tokend);
+							else if (tokend == ')') {
+								pop(parenthesis_stack);
+								if (amount(parenthesis_stack) == 1) break;
+							}
+						}
+					else if (tokend == '(') push(parenthesis_stack, tokend);
+					else if (tokend == ')') {
+						pop(parenthesis_stack);
+						if (is_empty_stack(parenthesis_stack)) break;
+					}
+					free_list(ha);
+					if (tokend != ' ' && tokend != '\n' && tokend != '\t')
+						push(domain, tokend);
+				}
+				fprintf(domainc, "};\n");
+				free_list(ha);
+				free(ha);
+			}
 			free_list(hd);
 		}
-		push(domain, tokend);
+		if (tokend != ' ' && tokend != '\n' && tokend != '\t')
+			push(domain, tokend);
 	}
 
 
@@ -221,7 +273,8 @@ int main(int argc, char *argv[]) {
 			}
 			free_list(hp);
 		}
-		push(problem, tokenp);
+		if (tokenp != ' ' && tokenp != '\t' && tokenp != '\n')
+			push(problem, tokenp);
 	}
 	fprintf(domainc, "\treturn 0;\n}\n");
 
