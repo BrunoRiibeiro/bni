@@ -21,4 +21,4 @@ $(TARGET): $(OBJ)
 
 # Clean up build files
 clean:
-	rm -f $(OBJ) $(TARGET) domain.c
+	rm -f $(OBJ) $(TARGET) pddl.c

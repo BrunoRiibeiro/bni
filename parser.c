@@ -5,6 +5,9 @@
 #include "linked_list.h"
 #include "stack.h"
 
+const char* KEYWORDS[] = {"AND", "OR", "NOT"};
+#define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
+
 void create_enums(FILE *f, SymbolTable *st) {
 	Node_st *aux = st->head;
 	while (aux) {
@@ -26,6 +29,7 @@ void hifen_to_underscore(char *s) {
 	}
 }
 
+
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
 		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
@@ -33,11 +37,17 @@ int main(int argc, char *argv[]) {
     }
 	char *domain_file_name = argv[1], *problem_file_name = argv[2];
 	
-	FILE *domain_file = fopen(domain_file_name, "r"), *problem_file = fopen(problem_file_name, "r"), *domainc = fopen("domain.c", "w");
+	FILE *domain_file = fopen(domain_file_name, "r"), *problem_file = fopen(problem_file_name, "r"), *domainc = fopen("pddl.c", "w"), *tmpfile = fopen("tmpfile", "w");
 	if (domain_file == NULL) {
 		perror("Error opening domain file");
 		return 1;
 	} if (problem_file == NULL) {
+		perror("Erro opening problem file");
+		return 1;
+	} if (domainc == NULL ) {
+		perror("Erro opening problem file");
+		return 1;
+	} if (domainc == NULL ) {
 		perror("Erro opening problem file");
 		return 1;
 	}
@@ -49,7 +59,7 @@ int main(int argc, char *argv[]) {
 	char *buffer = NULL; // Buffer para a função getline() em comentários ignorados.
 	size_t size_allocated = 0; // Tamanho alocado para a função getline() em comentários ignorados.
 	char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
-	fprintf(domainc, "#include <stdbool.h>\n\n");
+	fprintf(domainc, "#include <stdbool.h>\n#include \"ntree.h\"\n\n");
 
 	// Problem parser :objects
 
@@ -104,9 +114,11 @@ int main(int argc, char *argv[]) {
 		// Ignora os comentários.
 		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 		// Inicia o tratamento dos dados do domínio.
-		if (tokend == ' ' || tokend == '\n' || tokend == '\t') {
+		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
 			while (strcmp(top(domain), "("))
 				insert(hd, top(domain)), pop(domain);
+			printf("%d\n", amount(domain));
+			print_list(hd);
 			if (strcmp_list(hd, ":constants") == 0) {
 				for ( ; ; ) {
 					// count = how many constants are in one line.
@@ -127,7 +139,11 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 					// Bloco de :constants termina com um '\n' antes do ')'.
-					if (obj[0] == ')') break;
+					if (obj[0] == ')') {
+						if (strcmp(top(domain), "(") == 0)
+							pop(domain); 
+						break;
+					}
 					// Ler até encontrar ")" ou espaco ou quebra de linha ou tab.
 					fscanf(domain_file, " %[^)|^ |^\n|^\t]s", obj);
 					// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos.
@@ -199,7 +215,40 @@ int main(int argc, char *argv[]) {
 								fprintf(domainc, "\tunsigned long %s;\n", parameters);
 							}
 						}
-					else if (strcmp_list(ha, ":precondition") == 0)
+					else if (strcmp_list(ha, ":precondition") == 0) {
+						LinkedList *precondition = create_list();
+						int precon_count = 0;
+						fprintf(domainc, "\tNtree *precon;\n");
+						fprintf(tmpfile, "Ntree *precon = create_tree(15);\n");
+						while (fscanf(domain_file, "%c", &tokend)) {
+							if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+							if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(') && (amount(domain) != 3)){
+								while (strcmp(top(domain), "("))
+									insert(precondition, top(domain)), pop(domain);
+								print_list(precondition);
+								set_uppercase(precondition);
+								fprintf(tmpfile, "Data d%d;\n", precon_count);
+								fprintf(tmpfile, "d%d.index = %d;\n", precon_count, precon_count);
+								char *preid = list_to_str(precondition);
+								fprintf(tmpfile, "strcpy(d%d.id, \"%s\");\n", precon_count, preid), free(preid);
+								for (int i = 0; i < KEYWORDS_SIZE; i++) {	
+									if (strcmp_list(precondition, KEYWORDS[i]) == 0)
+										fprintf(tmpfile, "d%d.t = %s;\n", precon_count, KEYWORDS[i]);
+								}
+								precon_count++;
+							}	
+							if (tokend == '(') push(parenthesis_stack, tokend);
+							else if (tokend == ')') {
+								pop(parenthesis_stack);
+								if (amount(parenthesis_stack) == 1) break;
+							}
+							else if (tokend != ' ' && tokend != '\n' && tokend != '\t')
+								push(domain, tokend);
+							free_list(precondition);
+						}
+						free(precondition);
+					} else if (strcmp_list(ha, ":effect") == 0) {
+						fprintf(domainc, "\tNtree *effect;\n");
 						while (fscanf(domain_file, "%c", &tokend)) {
 							if (tokend == '(') push(parenthesis_stack, tokend);
 							else if (tokend == ')') {
@@ -207,15 +256,7 @@ int main(int argc, char *argv[]) {
 								if (amount(parenthesis_stack) == 1) break;
 							}
 						}
-					else if (strcmp_list(ha, ":effect") == 0)
-						while (fscanf(domain_file, "%c", &tokend)) {
-							if (tokend == '(') push(parenthesis_stack, tokend);
-							else if (tokend == ')') {
-								pop(parenthesis_stack);
-								if (amount(parenthesis_stack) == 1) break;
-							}
-						}
-					else if (tokend == '(') push(parenthesis_stack, tokend);
+					} else if (tokend == '(') push(parenthesis_stack, tokend);
 					else if (tokend == ')') {
 						pop(parenthesis_stack);
 						if (is_empty_stack(parenthesis_stack)) break;
@@ -230,8 +271,9 @@ int main(int argc, char *argv[]) {
 			}
 			free_list(hd);
 		}
-		if (tokend != ' ' && tokend != '\n' && tokend != '\t')
-			push(domain, tokend);
+		else push(domain, tokend); 
+		if (tokend == ')' && strcmp(top(domain), "(") == 0)
+			pop(domain);
 	}
 
 
@@ -280,7 +322,7 @@ int main(int argc, char *argv[]) {
 
 
 	/* -----------free-n-close------------------- */
-	fclose(domain_file), fclose(problem_file), fclose(domainc);
+	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(tmpfile);
 	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
 	free_list(hp), free_list(hd), free_list(hl);
 	free(hp), free(hd), free(hl);

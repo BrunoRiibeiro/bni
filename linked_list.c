@@ -58,6 +58,34 @@ int strcmp_list(LinkedList *h, const char *str) {
 	else return 1;
 }
 
+void set_uppercase(LinkedList *h) {
+	Node *aux = h->head;
+	while (aux != NULL) {
+		if (aux->data[0] >= 'a' && aux->data[0] <= 'z')
+			aux->data[0] -= 32;
+		aux = aux->next;
+	}
+}
+
+int node_count(LinkedList *h) {
+	Node *aux = h->head;
+	int count = 0;
+	while (aux != NULL)
+		count++, aux = aux->next;
+	return count;
+}
+
+char* list_to_str(LinkedList *h) {
+	Node *aux = h->head;
+	char i = 0, *str = malloc(node_count(h) + 1);
+	while (aux != NULL) {
+		str[i++] = aux->data[0];
+		aux = aux->next;
+	}
+	str[i] = '\0';
+	return str;
+}
+
 void print_list(LinkedList *h) {
 	Node *aux = h->head;
 	while (aux != NULL) {
