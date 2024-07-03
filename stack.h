@@ -16,5 +16,6 @@ void pop(Stack *p);
 int is_empty_stack(Stack *p);
 char* top(Stack *p);
 int amount(Stack *p);
+void stack_to_list(Stack *p, LinkedList *h);
 
 #endif /* STACK_H */

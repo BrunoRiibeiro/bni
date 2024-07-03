@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 
 	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack(); // Stacks para tokenizar arquivos de domínio e problemas. 'p_aux' é usado para fazer a correspondência de parênteses em ':predicates'.
 	char tokend, tokenp; // Variáveis de token para arquivos de domínio e problemas.
-	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list(); // Linked lists para leitura de strings em arquivos de domínio e problemas.
+	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list(), *tmplist = create_list(); // Linked lists para leitura de strings em arquivos de domínio e problemas.
 	SymbolTable *st = create_st();
 	char *buffer = NULL; // Buffer para a função getline() em comentários ignorados.
 	size_t size_allocated = 0; // Tamanho alocado para a função getline() em comentários ignorados.
@@ -115,47 +115,51 @@ int main(int argc, char *argv[]) {
 		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 		// Inicia o tratamento dos dados do domínio.
 		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
-			while (strcmp(top(domain), "("))
-				insert(hd, top(domain)), pop(domain);
-			printf("%d\n", amount(domain));
-			print_list(hd);
+			stack_to_list(domain, hd);
 			if (strcmp_list(hd, ":constants") == 0) {
-				for ( ; ; ) {
-					// count = how many constants are in one line.
-					// obj = object type string.
-					char obj[100];
-					unsigned short count = 0;
-					while (fscanf(domain_file, "%s", obj) && obj[0] != '-' && obj[0] != ')') {
-						hifen_to_underscore(obj);
+				unsigned short count = 0;
+				while (fscanf(domain_file, "%c", &tokend) != EOF) { 
+					// Ignora os comentários.
+					if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+					// Inicia o tratamento dos dados do domínio.
+					if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
+						while (strcmp(top(domain), "(")) {
+							if (top(domain) == "-") insert(tmplist, "_");
+							else insert(tmplist, top(domain));
+							pop(domain);
+						}
+						if (obj_sentinel == 1) {
+							char *obj = list_to_str(tmplist);
+							add_st(st, obj, count, hl);
+							free_list(tmplist), free_list(hl), free(obj);
+							obj_sentinel = 0;
+						} 
+						if (tokend == ')' && strcmp(top(domain), "(") == 0) {
+							if (!is_empty_list(hl)) {
+								add_st(st, "obj", count, hl);
+								free_list(tmplist), free_list(hl);
+							}
+							free_list(tmplist);
+							free_list(hl);
+							break;
+						}
+					}
+					if (node_count(tmplist) == 1 && tmplist->head->data == "_") obj_sentinel = 1;
+					if (!obj_sentinel && !is_empty_list(tmplist)) {
+						char *obj = list_to_str(tmplist);
 						insert(hl, obj);
+						free(obj);
 						count++;
 					}
-					// Verifica se existe um tipo de constante lidos.
-					if (obj[0] == '-') obj_sentinel = 1;
-					// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj".
-					if (!obj_sentinel) {
-						add_st(st, "obj", count, hl);
-						free_list(hl);
-						break;
-					}
-					// Bloco de :constants termina com um '\n' antes do ')'.
-					if (obj[0] == ')') {
-						if (strcmp(top(domain), "(") == 0)
-							pop(domain); 
-						break;
-					}
-					// Ler até encontrar ")" ou espaco ou quebra de linha ou tab.
-					fscanf(domain_file, " %[^)|^ |^\n|^\t]s", obj);
-					// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos.
-					add_st(st, obj, count, hl);
-					free_list(hl);
-					if (fscanf(domain_file, "%c", &tokend) && tokend == ')') break;
+					if (tokend != ' ' && tokend != '\n' && tokend != '\t')
+						push(domain, tokend);
+					free_list(tmplist);
 				}
 			}
 			// Tratamento dos dados do  bloco "predicates".
 			else if (strcmp_list(hd, ":predicates") == 0) {
 				create_enums(domainc, st);
-			   	print_st(st);
+				print_st(st);
 				push(parenthesis_stack, '(');
 				// count = quantos '?' em uma linha.
 				unsigned short count = 0;
@@ -169,8 +173,8 @@ int main(int argc, char *argv[]) {
 					   tokend = '-' -> printa [] com a qtd de objetos.
 					   tokend = '(' -> add na pilha de parenteses, printando bool com o nome da variavel.
 					   tokend = ')' -> desempilha, caso esteja vazia encerra o tratamento do bloco :predicates. 
-					   					Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
-					*/
+					   Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
+					   */
 					if (tokend == '?') count++;
 					else if (tokend == '-') {
 						fscanf(domain_file, " %[^)|^ ]s", str);
@@ -204,8 +208,7 @@ int main(int argc, char *argv[]) {
 				while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 					if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 					if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(')
-						while (strcmp(top(domain), "("))
-							insert(ha, top(domain)), pop(domain);
+						stack_to_list(domain, ha);
 					if (strcmp_list(ha, ":parameters") == 0)
 						while (fscanf(domain_file, "%c", &tokend)) {
 							if (tokend == ')') break;
@@ -222,10 +225,8 @@ int main(int argc, char *argv[]) {
 						fprintf(tmpfile, "Ntree *precon = create_tree(15);\n");
 						while (fscanf(domain_file, "%c", &tokend)) {
 							if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
-							if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(') && (amount(domain) != 3)){
-								while (strcmp(top(domain), "("))
-									insert(precondition, top(domain)), pop(domain);
-								print_list(precondition);
+							if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(') && (amount(domain) != 2)){
+								stack_to_list(domain, precondition);
 								set_uppercase(precondition);
 								fprintf(tmpfile, "Data d%d;\n", precon_count);
 								fprintf(tmpfile, "d%d.index = %d;\n", precon_count, precon_count);
@@ -324,8 +325,8 @@ int main(int argc, char *argv[]) {
 	/* -----------free-n-close------------------- */
 	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(tmpfile);
 	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
-	free_list(hp), free_list(hd), free_list(hl);
-	free(hp), free(hd), free(hl);
+	free_list(hp), free_list(hd), free_list(hl), free_list(tmplist);
+	free(hp), free(hd), free(hl), free(tmplist);
 	free_st(st);
 	free(buffer);
 	return 0;

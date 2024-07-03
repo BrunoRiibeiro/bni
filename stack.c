@@ -46,3 +46,8 @@ char* top(Stack *p) {
 int amount(Stack *p) {
 	return p->size;
 }
+
+void stack_to_list(Stack *p, LinkedList *h) {
+   while (!is_empty_stack(p) && strcmp(top(p), "("))
+	   insert(h, top(p)), pop(p);
+}
