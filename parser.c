@@ -32,48 +32,17 @@ void hifen_to_underscore(char *s) {
 	}
 }
 
-void objects(FILE *problem_file, SymbolTable *st, LinkedList *hl, char tokenp) {
-	for ( ; ; ) {
-		// count = how many objects are in one line.
-		// obj = object type string.
-		char obj[100];
-		unsigned short count = 0;
-		while (fscanf(problem_file, "%s", obj) && obj[0] != '-' && obj[0] != ')') {
-			hifen_to_underscore(obj);
-			insert(hl, obj);
-			count++; 
-		} 
-		// Verifica se existe um tipo dos objetos lidos.
-		if (obj[0] == '-') obj_sentinel = 1; 
-		// Caso nao tenha declarado nenhum tipo de objeto, define objeto padrao como "obj". 
-		if (!obj_sentinel) {
-			add_st(st, "obj", count, hl); 
-			free_list(hl);
-			break;
-		}
-		// Bloco de :objects termina com um '\n' antes do ')'.
-		if (obj[0] == ')') break;
-		// Ler até encontrar ")" ou espaco ou quebra de linha ou tab.
-		fscanf(problem_file, " %[^)|^ |^\n|^\t]s", obj);
-		// Adiciona ou aumenta a quantidade de repeticoes de um tipo de objeto a tabela de simbolos.
-		add_st(st, obj, count, hl);
-		free_list(hl);
-		if (fscanf(problem_file, "%c", &tokenp) && tokenp == ')') break;
-	}
-	return;
-}
-
-void constants(FILE *domain_file, SymbolTable *st, Stack *domain, LinkedList *hl, LinkedList *tmplist, char tokend) {
+void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, LinkedList *tmplist, char token) {
 	unsigned short count = 0;
-	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
+	while (fscanf(file, "%c", &token) != EOF) { 
 		// Ignora os comentários.
-		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+		if (token == ';') getline(&buffer, &size_allocated, file);
 		// Inicia o tratamento dos dados do domínio.
-		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
-			while (strcmp(top(domain), "(")) {
-				if (top(domain) == "-") insert(tmplist, "_");
-				else insert(tmplist, top(domain));
-				pop(domain);
+		if (token == ' ' || token == '\n' || token == '\t' || token == ')') {
+			while (strcmp(top(stack), "(")) {
+				if (strcmp(top(stack), "-") == 0) insert(tmplist, "_");
+				else insert(tmplist, top(stack));
+				pop(stack);
 			}
 			if (obj_sentinel == 1) {
 				char *obj = list_to_str(tmplist);
@@ -81,7 +50,7 @@ void constants(FILE *domain_file, SymbolTable *st, Stack *domain, LinkedList *hl
 				free_list(tmplist), free_list(hl), free(obj);
 				obj_sentinel = 0;
 			} 
-			if (tokend == ')' && strcmp(top(domain), "(") == 0) {
+			if (token == ')' && strcmp(top(stack), "(") == 0) {
 				if (!is_empty_list(hl)) {
 					add_st(st, "obj", count, hl);
 					free_list(tmplist), free_list(hl);
@@ -98,8 +67,8 @@ void constants(FILE *domain_file, SymbolTable *st, Stack *domain, LinkedList *hl
 			free(obj);
 			count++;
 		}
-		if (tokend != ' ' && tokend != '\n' && tokend != '\t')
-			push(domain, tokend);
+		if (token != ' ' && token != '\n' && token != '\t')
+			push(stack, token);
 		free_list(tmplist);
 	}
 	return;
@@ -284,7 +253,7 @@ int main(int argc, char *argv[]) {
 			stack_to_list(problem, hp);
 			// Tratamento dos dados do  bloco "objects" até encontrar ")".
 			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
-				objects(problem_file, st, hl, tokenp);
+				constants_n_objects(problem_file, st, problem, hl, tmplist, tokenp);
 				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
 				break;
 			}
@@ -303,7 +272,7 @@ int main(int argc, char *argv[]) {
 		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
 			stack_to_list(domain, hd);
 			if (strcmp_list(hd, ":constants") == 0)
-				constants(domain_file, st, domain, hl, tmplist, tokend);
+				constants_n_objects(domain_file, st, domain, hl, tmplist, tokend);
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
