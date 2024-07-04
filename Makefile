@@ -22,3 +22,11 @@ $(TARGET): $(OBJ)
 # Clean up build files
 clean:
 	rm -f $(OBJ) $(TARGET) pddl.c
+
+# Run with valgrind
+valgrind:
+	valgrind --leak-check=full ./parser test/domain.pddl test/problem.pddl
+
+# Run without valgrind
+run:
+	./parser test/domain.pddl test/problem.pddl
