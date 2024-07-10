@@ -25,8 +25,12 @@ clean:
 
 # Run with valgrind
 valgrind:
-	valgrind --leak-check=full ./parser test/domain.pddl test/problem.pddl
+	valgrind --leak-check=full ./parser test/domain-snake.pddl test/problem-snake.pddl
 
 # Run without valgrind
 run:
-	./parser test/domain.pddl test/problem.pddl
+	./parser test/domain-snake.pddl test/problem-snake.pddl
+rni:
+	./parser test/dni-snake.pddl test/pni-snake.pddl
+rlo:
+	./parser test/domain-lo.pddl test/problem-lo.pddl
