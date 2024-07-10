@@ -51,6 +51,10 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 				obj_sentinel = 0;
 			} 
 			if (token == ')' && strcmp(top(stack), "(") == 0) {
+				if (!is_empty_list(tmplist)) {
+					insert(hl, list_to_str(tmplist));
+					count++;
+				}
 				if (!is_empty_list(hl)) {
 					add_st(st, "obj", count, hl);
 					free_list(tmplist), free_list(hl);
@@ -60,7 +64,7 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 				break;
 			}
 		}
-		if (node_count(tmplist) == 1 && tmplist->head->data == "_") obj_sentinel = 1;
+		if (node_count(tmplist) == 1 && strcmp(tmplist->head->data, "_") == 0) obj_sentinel = 1;
 		if (!obj_sentinel && !is_empty_list(tmplist)) {
 			char *obj = list_to_str(tmplist);
 			insert(hl, obj);
@@ -117,7 +121,7 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 	return;
 }
 
-void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stack *parenthesis_stack, char tokend) {
+void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
 	LinkedList *ha = create_list();
 	push(parenthesis_stack, '(');
 	char str[100];
@@ -141,22 +145,35 @@ void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stac
 			LinkedList *precondition = create_list();
 			int precon_count = 0;
 			fprintf(domainc, "\tNtree *precon;\n");
-			fprintf(tmpfile, "Ntree *precon = create_tree(15);\n");
+			// 15 = numero de nós que a arvore tem
+			fprintf(tmpfile, "Ntree *precon-%d = create_tree(15);\n", act_count);
 			while (fscanf(domain_file, "%c", &tokend)) {
 				if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
-				if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(') && (amount(domain) != 2)){
+				if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(' || tokend == ')') && (amount(domain) != 2)){
 					stack_to_list(domain, precondition);
-					set_uppercase(precondition);
-					fprintf(tmpfile, "Data d%d;\n", precon_count);
-					fprintf(tmpfile, "d%d.index = %d;\n", precon_count, precon_count);
-					char *preid = list_to_str(precondition);
-					fprintf(tmpfile, "strcpy(d%d.id, \"%s\");\n", precon_count, preid), free(preid);
-					for (int i = 0; i < KEYWORDS_SIZE; i++) {	
-						if (strcmp_list(precondition, KEYWORDS[i]) == 0)
-							fprintf(tmpfile, "d%d.t = %s;\n", precon_count, KEYWORDS[i]);
+					if (!is_empty_list(precondition)) {
+						if (precondition->head->data[0] != '?') {
+							set_uppercase(precondition);
+							fprintf(tmpfile, "Data d-%d-%d;\n", act_count, precon_count);
+							fprintf(tmpfile, "d-%d-%d.index = %d;\n", act_count, precon_count, precon_count);
+							char *preid = list_to_str(precondition);
+							fprintf(tmpfile, "strcpy(d-%d-%d.id, \"%s\");\n", act_count, precon_count, preid), free(preid);
+							char sig = 0;
+							for (int i = 0; i < KEYWORDS_SIZE; i++) {	
+								if (strcmp_list(precondition, KEYWORDS[i]) == 0) {
+									fprintf(tmpfile, "d-%d-%d.t = %s;\n", act_count, precon_count, KEYWORDS[i]);
+									sig = 1;
+								}
+							}
+							if (!sig ) fprintf(tmpfile, "d-%d-%d.t = %s;\n", act_count, precon_count, "PARAMETER");
+							precon_count++;
+						} else {
+							//add args dos predicados ?<...>
+							char *arg = list_to_str(precondition);
+							fprintf(tmpfile, "d-%d-%d.args = %s;\n", act_count, precon_count, arg), free(arg);
+						}
 					}
-					precon_count++;
-				}	
+				}
 				if (tokend == '(') push(parenthesis_stack, tokend);
 				else if (tokend == ')') {
 					pop(parenthesis_stack);
@@ -201,7 +218,6 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 			fscanf(problem_file, "%[^)|^ ]s", str);
 			hifen_to_underscore(str);
 			fprintf(domainc, "[%s]", str);
-
 		}
 		else if (tokenp == '(') {
 			push(parenthesis_stack, tokenp), fscanf(problem_file, "%[^)|^ ]s", str);
@@ -265,18 +281,20 @@ int main(int argc, char *argv[]) {
 
 	// Domain parser
 	obj_sentinel = 0;	
+	int act_count = 0;
 	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
 		// Ignora os comentários.
 		if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
+		if (tokend == '(') push(domain, tokend);
 		// Inicia o tratamento dos dados do domínio.
-		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == ')') {
+		if (tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(' || tokend == ')') {
 			stack_to_list(domain, hd);
 			if (strcmp_list(hd, ":constants") == 0)
 				constants_n_objects(domain_file, st, domain, hl, tmplist, tokend);
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
-				action(domain_file, domainc, tmpfile, domain, parenthesis_stack, tokend);
+				action(domain_file, domainc, tmpfile, domain, parenthesis_stack, tokend, act_count++);
 			free_list(hd);
 		}
 		else push(domain, tokend); 
@@ -289,8 +307,9 @@ int main(int argc, char *argv[]) {
 	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
 		// Ignorar os comentário.
 		if (tokenp == ';') getline(&buffer, &size_allocated, problem_file);
+		if (tokenp == '(') push(problem, tokenp);
 		// Tratamento dos dados.
-		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t') {
+		if (tokenp == ' ' || tokenp == '\n' || tokenp == '\t' || tokenp == '(' || tokenp == ')') {
 			// Transfere os tokens da pilha para a lista, para assim serem lidos como string (strcmp_list).
 			stack_to_list(problem, hp);
 			// Tratamento dos dados do  bloco ":init" até encontrar ")".
@@ -298,8 +317,9 @@ int main(int argc, char *argv[]) {
 				init(problem_file, domain_file, domainc, parenthesis_stack, tokenp);
 			free_list(hp);
 		}
-		if (tokenp != ' ' && tokenp != '\t' && tokenp != '\n')
-			push(problem, tokenp);
+		else push(problem, tokenp);
+		if (tokenp == ')' && strcmp(top(problem), "(") == 0)
+			pop(problem);
 	}
 	fprintf(domainc, "\treturn 0;\n}\n");
 
