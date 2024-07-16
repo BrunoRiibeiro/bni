@@ -105,6 +105,7 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 		}
 		else if (tokend == '(') {
 			push(parenthesis_stack, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
+			hifen_to_underscore(str);
 			fprintf(domainc, "bool %s", str);
 		}
 		else if (tokend == ')') {
@@ -121,7 +122,8 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 	return;
 }
 
-void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
+void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
+	FILE *tmpfile = fopen("tmpfile", "a");
 	LinkedList *ha = create_list();
 	push(parenthesis_stack, '(');
 	char str[100];
@@ -143,10 +145,11 @@ void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stac
 			}
 		else if (strcmp_list(ha, ":precondition") == 0) {
 			LinkedList *precondition = create_list();
+			int dad[100], dadtop = 0;
 			int precon_count = 0;
 			fprintf(domainc, "\tNtree *precon;\n");
 			// 15 = numero de nós que a arvore tem
-			fprintf(tmpfile, "Ntree *precon-%d = create_tree(15);\n", act_count);
+			fprintf(tmpfile, "\tNtree *precon_%d = create_tree(15);\n", act_count);
 			while (fscanf(domain_file, "%c", &tokend)) {
 				if (tokend == ';') getline(&buffer, &size_allocated, domain_file);
 				if ((tokend == ' ' || tokend == '\n' || tokend == '\t' || tokend == '(' || tokend == ')') && (amount(domain) != 2)){
@@ -154,28 +157,33 @@ void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stac
 					if (!is_empty_list(precondition)) {
 						if (precondition->head->data[0] != '?') {
 							set_uppercase(precondition);
-							fprintf(tmpfile, "Data d-%d-%d;\n", act_count, precon_count);
-							fprintf(tmpfile, "d-%d-%d.index = %d;\n", act_count, precon_count, precon_count);
+							fprintf(tmpfile, "\tData d_%d_%d;\n", act_count, precon_count);
+							fprintf(tmpfile, "\td_%d_%d.index = %d;\n", act_count, precon_count, precon_count);
 							char *preid = list_to_str(precondition);
-							fprintf(tmpfile, "strcpy(d-%d-%d.id, \"%s\");\n", act_count, precon_count, preid), free(preid);
+							fprintf(tmpfile, "\tstrcpy(d_%d_%d.id, \"%s\");\n", act_count, precon_count, preid), free(preid);
 							char sig = 0;
 							for (int i = 0; i < KEYWORDS_SIZE; i++) {	
 								if (strcmp_list(precondition, KEYWORDS[i]) == 0) {
-									fprintf(tmpfile, "d-%d-%d.t = %s;\n", act_count, precon_count, KEYWORDS[i]);
+									fprintf(tmpfile, "\td_%d_%d.t = %s;\n", act_count, precon_count, KEYWORDS[i]);
 									sig = 1;
 								}
 							}
-							if (!sig ) fprintf(tmpfile, "d-%d-%d.t = %s;\n", act_count, precon_count, "PARAMETER");
+							if (!sig) fprintf(tmpfile, "\td_%d_%d.t = %s;\n", act_count, precon_count, "PARAMETER");
+							fprintf(tmpfile, "\tinsert(*precon_%d->adj, d_%d_%d);\n", act_count, act_count, precon_count);
+							if (precon_count > 0)
+								fprintf(tmpfile, "\tadd_edge(precon_%d, d_%d_%d, d_%d_%d);\n", act_count, act_count, dad[dadtop-1], act_count, precon_count);
+							dad[dadtop++] = precon_count;
 							precon_count++;
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
-							fprintf(tmpfile, "d-%d-%d.args = %s;\n", act_count, precon_count, arg), free(arg);
+							fprintf(tmpfile, "\td_%d_%d.args = %s;\n", act_count, precon_count-1, arg), free(arg);
 						}
 					}
 				}
 				if (tokend == '(') push(parenthesis_stack, tokend);
 				else if (tokend == ')') {
+					dadtop--;
 					pop(parenthesis_stack);
 					if (amount(parenthesis_stack) == 1) break;
 				}
@@ -204,6 +212,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *tmpfile, Stack *domain, Stac
 	}
 	fprintf(domainc, "};\n");
 	free_list(ha), free(ha);
+	fclose(tmpfile);
 	return;
 }
 
@@ -221,6 +230,7 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 		}
 		else if (tokenp == '(') {
 			push(parenthesis_stack, tokenp), fscanf(problem_file, "%[^)|^ ]s", str);
+			hifen_to_underscore(str);
 			fprintf(domainc, "\t%s", str);
 		}
 		else if (tokenp == ')') {
@@ -232,6 +242,15 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 	return;
 }
 
+void cat(const char *fname, FILE *f2) {
+	FILE *f1 = fopen(fname, "r");
+	char c;
+	while (fscanf(f1, "%c", &c) != EOF)
+		fprintf(f2, "%c", c);
+	fclose(f1);
+	return;
+}
+
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
 		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
@@ -239,14 +258,11 @@ int main(int argc, char *argv[]) {
 	}
 	char *domain_file_name = argv[1], *problem_file_name = argv[2];
 
-	FILE *domain_file = fopen(domain_file_name, "r"), *problem_file = fopen(problem_file_name, "r"), *domainc = fopen("pddl.c", "w"), *tmpfile = fopen("tmpfile", "w");
+	FILE *domain_file = fopen(domain_file_name, "r"), *problem_file = fopen(problem_file_name, "r"), *domainc = fopen("pddl.c", "w");
 	if (domain_file == NULL) {
 		perror("Error opening domain file");
 		return 1;
 	} if (problem_file == NULL) {
-		perror("Erro opening problem file");
-		return 1;
-	} if (domainc == NULL ) {
 		perror("Erro opening problem file");
 		return 1;
 	} if (domainc == NULL ) {
@@ -258,7 +274,7 @@ int main(int argc, char *argv[]) {
 	char tokend, tokenp;
 	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list(), *tmplist = create_list();
 	SymbolTable *st = create_st();
-	fprintf(domainc, "#include <stdbool.h>\n#include \"ntree.h\"\n\n");
+	fprintf(domainc, "#include <stdbool.h>\n#include <string.h>\n#include \"ntree.h\"\n\n");
 
 	// Problem parser :objects
 	while (fscanf(problem_file, "%c", &tokenp)) {
@@ -294,7 +310,7 @@ int main(int argc, char *argv[]) {
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
-				action(domain_file, domainc, tmpfile, domain, parenthesis_stack, tokend, act_count++);
+				action(domain_file, domainc, domain, parenthesis_stack, tokend, act_count++);
 			free_list(hd);
 		}
 		else push(domain, tokend); 
@@ -321,11 +337,13 @@ int main(int argc, char *argv[]) {
 		if (tokenp == ')' && strcmp(top(problem), "(") == 0)
 			pop(problem);
 	}
+	cat("tmpfile", domainc);
+	remove("tmpfile");
 	fprintf(domainc, "\treturn 0;\n}\n");
 
 
 	/* -----------free-n-close------------------- */
-	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(tmpfile);
+	fclose(domain_file), fclose(problem_file), fclose(domainc);
 	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
 	free_list(hp), free_list(hd), free_list(hl), free_list(tmplist);
 	free(hp), free(hd), free(hl), free(tmplist);
