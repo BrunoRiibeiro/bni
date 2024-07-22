@@ -6,6 +6,7 @@
 * deixar mais claro como vamos adicionar na arvore
 ------
 * funcoes do bloco effect
+	|_ func APL_ACAO();
 
 
 

@@ -32,6 +32,15 @@ void hifen_to_underscore(char *s) {
 	}
 }
 
+void cat(const char *fname, FILE *f2) {
+	FILE *f1 = fopen(fname, "r");
+	char c;
+	while (fscanf(f1, "%c", &c) != EOF)
+		fprintf(f2, "%c", c);
+	fclose(f1);
+	return;
+}
+
 void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, LinkedList *tmplist, char token) {
 	unsigned short count = 0;
 	while (fscanf(file, "%c", &token) != EOF) { 
@@ -79,6 +88,7 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 }
 
 void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parenthesis_stack, char tokend) {
+	FILE *tmpfile = fopen("tmpfile", "a");
 	create_enums(domainc, st);
 	print_st(st);
 	push(parenthesis_stack, '(');
@@ -95,30 +105,52 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 		   tokend = '(' -> add na pilha de parenteses, printando bool com o nome da variavel.
 		   tokend = ')' -> desempilha, caso esteja vazia encerra o tratamento do bloco :predicates. 
 		   Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
+		   bool check(int tmpstr, ...) {
+		       return precon[tmb];
+		   }
 		   */
-		if (tokend == '?') count++;
+		char tmpstr[30][100];
+		if (tokend == '?') {
+			fscanf(domain_file, " %[^)|^ ]s", tmpstr[count]);
+			if (count > 0) fprintf(tmpfile, ", int %s", tmpstr[count]);
+			else fprintf(tmpfile, "int %s", tmpstr[count]);
+			count++;
+		}
 		else if (tokend == '-') {
+			obj_sentinel = 1;
+			fprintf(tmpfile, ") {\n\treturn %s", str);
 			fscanf(domain_file, " %[^)|^ ]s", str);
-			for (int i = 0; i < count; i++)
+			for (int i = 0; i < count; i++) {
+				fprintf(tmpfile, "[%s]", tmpstr[i]);
 				fprintf(domainc, "[%ld]", get_qtd(st, str));
+			}
 			count = 0;
 		}
 		else if (tokend == '(') {
 			push(parenthesis_stack, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
 			hifen_to_underscore(str);
 			fprintf(domainc, "bool %s", str);
+			fprintf(tmpfile, "bool checktrue_%s(", str);
 		}
 		else if (tokend == ')') {
 			pop(parenthesis_stack);
 			if (is_empty_stack(parenthesis_stack)) break;
-			else if (!obj_sentinel) {
-				for (int i = 0; i < count; i++)
+			if (!obj_sentinel) {
+				fprintf(tmpfile, ") {\n\treturn %s", str);
+				for (int i = 0; i < count; i++) {
+					fprintf(tmpfile, "[%s]", tmpstr[i]);
 					fprintf(domainc, "[%ld]", get_qtd(st, "obj"));
+				}
 				count = 0;
 			}
+			obj_sentinel = 0;
 			fprintf(domainc, ";\n");
+			fprintf(tmpfile, ";\n}\n");
 		}
 	}
+	fclose(tmpfile);
+	cat("tmpfile", domainc);
+	remove("tmpfile");
 	return;
 }
 
@@ -177,7 +209,7 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
-							fprintf(tmpfile, "\td_%d_%d.args = %s;\n", act_count, precon_count-1, arg), free(arg);
+							fprintf(tmpfile, "\td_%d_%d.args = %s;\n", act_count, precon_count-1, arg+1), free(arg);
 						}
 					}
 				}
@@ -239,15 +271,6 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 			fprintf(domainc, " = true;\n");
 		}
 	}
-	return;
-}
-
-void cat(const char *fname, FILE *f2) {
-	FILE *f1 = fopen(fname, "r");
-	char c;
-	while (fscanf(f1, "%c", &c) != EOF)
-		fprintf(f2, "%c", c);
-	fclose(f1);
 	return;
 }
 
