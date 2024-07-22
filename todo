@@ -1,0 +1,23 @@
+* :constants sem tipo podem ir para qualquer enum
+* match de parentesis
+------
+* tamanho arvore precondition
+* add agrs para parameters
+* deixar mais claro como vamos adicionar na arvore
+------
+* funcoes do bloco effect
+
+
+
+
+
+
+
+
+
+
+
+
+;; o parser funciona para arquivos sem indentacao, porem, é necessario um espaco
+;; apos as segintes palavras: {predicates, parameters, precondition, effect, init,
+;; goal}
