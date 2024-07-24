@@ -34,3 +34,5 @@ rni:
 	./parser test/dni-snake.pddl test/pni-snake.pddl
 rlo:
 	./parser test/domain-lo.pddl test/problem-lo.pddl
+rfa:
+	./parser test/domain-lo-forall.pddl test/problem-lo-forall.pddl
