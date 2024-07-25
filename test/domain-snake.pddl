@@ -30,7 +30,8 @@
         (tailsnake ?tail)
         (nextsnake ?newtail ?tail)
         (not (blocked ?newhead))
-        (not (ispoint ?newhead))
+        (or (blocked ?newhead)
+        (not (ispoint ?newhead)))
     )
     :effect
     (and
