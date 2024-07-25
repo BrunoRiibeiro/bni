@@ -183,28 +183,40 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 			}
 			fprintf(domainc, "};\n");
 		} else if (strcmp_list(ha, ":precondition") == 0) {
-			fprintf(domainc, "void checktrue_%s(struct %s s) {\n\treturn ", str, str);
+			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n\treturn ", str, str);
 			LinkedList *precondition = create_list();
-			char sigarg = 0, flag = 0;
+			Stack *operators = create_stack();
+			char sigarg = 0, flag = 0, dummyflag = 0;
 			while (fscanf(domain_file, "%c", &tokend)) {
 				if ((tokend == ' ' || tokend == '(' || tokend == ')') && (amount(domain) != 2)) {
 					stack_to_list(domain, precondition);
 					if (!is_empty_list(precondition)) {
 						if (precondition->head->data[0] != '?') {
-							char sig = 0;
-							for (int i = 0; i < KEYWORDS_SIZE; i++) {	
+							char sig = 0, i;
+							for (i = 0; i < KEYWORDS_SIZE; i++) {
 								if (strcmp_list(precondition, KEYWORDS[i]) == 0) {
-									if (flag) fprintf(domainc, ", %s(", KEYWORDS[i]);
-									else fprintf(domainc, "%s(", KEYWORDS[i]);
+									if (flag)
+										if (i == 2) fprintf(domainc, " %s !(", KEYWORDS[top(operators)[0]]);
+										else fprintf(domainc, " %s (", KEYWORDS[top(operators)[0]]);
+									else
+										if (i == 2) fprintf(domainc, "!(");
+										else fprintf(domainc, "(");
 									sig = 1, flag = 0;
+									break;
 								}
 							}
-							if (!sig) {
+							if (!sig && !dummyflag) {
 								char *preid = list_to_str(precondition);
-								if (flag) fprintf(domainc, ", checktrue_%s(", preid);
+								if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
 								else fprintf(domainc, "checktrue_%s(", preid);
-								free(preid), flag = 0;
+								free(preid), flag = 0, dummyflag = 1;
+							} else if (!sig && dummyflag) {
+								char *arg = list_to_str(precondition);
+								if (sigarg) fprintf(domainc, ", %s", arg);
+								else fprintf(domainc, "%s", arg), sigarg = 1;
+								free(arg);
 							}
+							push(operators, i);
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
@@ -216,8 +228,9 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 				}
 				if (tokend == '(') push(parenthesis_stack, tokend);
 				else if (tokend == ')') {
-					sigarg = 0, flag = 1;
+					sigarg = 0, flag = 1, dummyflag = 0;
 					pop(parenthesis_stack);
+					pop(operators);
 					if (amount(parenthesis_stack) == 1) break;
 					fprintf(domainc, ")");
 				}
@@ -323,7 +336,7 @@ int main(int argc, char *argv[]) {
 	char tokend, tokenp;
 	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list(), *tmplist = create_list();
 	SymbolTable *st = create_st();
-	fprintf(domainc, "#include <stdbool.h>\n#include <string.h>\n\n");
+	fprintf(domainc, "#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
 
 	// Problem parser :objects
 	while (fscanf(problem_file, "%c", &tokenp)) {
