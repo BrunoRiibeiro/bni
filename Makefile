@@ -28,7 +28,7 @@ valgrind:
 	valgrind --leak-check=full ./parser test/domain-snake.pddl test/problem-snake.pddl
 
 # Run without valgrind
-run:
+rsk:
 	./parser test/domain-snake.pddl test/problem-snake.pddl
 rni:
 	./parser test/dni-snake.pddl test/pni-snake.pddl
@@ -36,3 +36,7 @@ rlo:
 	./parser test/domain-lo.pddl test/problem-lo.pddl
 rfa:
 	./parser test/domain-lo-forall.pddl test/problem-lo-forall.pddl
+rod:
+	./parser test/domain-old.pddl test/problem-old.pddl
+rtl:
+	./parser test/domain-tele.pddl test/problem-tele.pddl
