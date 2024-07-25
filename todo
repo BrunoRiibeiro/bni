@@ -1,22 +1,28 @@
 * :constants sem tipo podem ir para qualquer enum
 * match de parentesis
+
+;; REPL
+------
+* iniciar o REPL
+------
+
+;; bloco precondition e effect 
+------
+* add forall e when 	
+* criar as macros FORALL, WHEN
+* operadores matematicos {=,+,-,>,<,...}
+------
+
+
+;; temporariamente adiado, mudança da árvore para funções dinâmicas.
 ------
 * tamanho arvore precondition
 * add agrs para parameters
 * deixar mais claro como vamos adicionar na arvore
 ------
-* funcoes do bloco effect
-	|_ func APL_ACAO();
 
 
-
-
-
-
-
-
-
-
+;; NÃO FUNCIONA para subtypes
 
 
 ;; o parser funciona para arquivos sem indentacao, porem, é necessario um espaco
