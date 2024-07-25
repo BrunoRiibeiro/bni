@@ -58,15 +58,6 @@ int strcmp_list(LinkedList *h, const char *str) {
 	else return 1;
 }
 
-void set_uppercase(LinkedList *h) {
-	Node *aux = h->head;
-	while (aux != NULL) {
-		if (aux->data[0] >= 'a' && aux->data[0] <= 'z')
-			aux->data[0] -= 32;
-		aux = aux->next;
-	}
-}
-
 int node_count(LinkedList *h) {
 	Node *aux = h->head;
 	int count = 0;
