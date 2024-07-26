@@ -109,9 +109,9 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 	push(parenthesis_stack, '(');
 	// count = quantos '?' em uma linha.
 	unsigned short count = 0, count_p = 0;
+	char str[100];
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		// str = nome do predicado.
-		char str[100];
 		/* caso:
 		   tokend = '?' -> soma count.
 		   tokend = '-' -> printa [] com a qtd de objetos.
@@ -210,11 +210,13 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 							}
 							if (!sig && !dummyflag) {
 								char *preid = list_to_str(precondition);
+								hifen_to_underscore(preid);
 								if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
 								else fprintf(domainc, "checktrue_%s(", preid);
 								free(preid), flag = 0, dummyflag = 1;
 							} else if (!sig && dummyflag) {
 								char *arg = list_to_str(precondition);
+								hifen_to_underscore(arg);
 								if (sigarg) fprintf(domainc, ", %s", arg);
 								else fprintf(domainc, "%s", arg), sigarg = 1;
 								free(arg);
@@ -223,6 +225,7 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
+							hifen_to_underscore(arg);
 							if (sigarg) fprintf(domainc, ", s.%s", arg+1);
 							else fprintf(domainc, "s.%s", arg+1), sigarg = 1;
 							free(arg);
@@ -257,11 +260,13 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 								continue;
 							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
 							char *predicate = list_to_str(effect);
+							hifen_to_underscore(predicate);
 							fprintf(domainc, "\t%s", predicate);
 							free(predicate);
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(effect);
+							hifen_to_underscore(arg);
 							fprintf(domainc, "[s.%s]", arg+1);
 							free(arg);
 						}
