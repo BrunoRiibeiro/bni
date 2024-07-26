@@ -22,13 +22,6 @@ void create_enums(FILE *f, SymbolTable *st) {
 	}
 }
 
-void hifen_to_underscore(char *s) {
-	while (*s != '\0') {
-		if (*s == '-') *s = '_';
-		s++;
-	}
-}
-
 char *preprocess_file(const char *f) {
 	size_t linecap = 0;
 	char token, *line = NULL, *filename = malloc(strlen(f) + 10);
@@ -44,6 +37,7 @@ char *preprocess_file(const char *f) {
 	while (fscanf(basefile, "%c", &token) != EOF)
 		if (token == ';') getline(&line, &linecap, basefile);	
 		else if (token == '\t') fprintf(file, " ");
+		else if (token == '-') fprintf(file, "_");
 		else if (token != '\n') fprintf(file, "%c", tolower(token));
 	fclose(basefile), fclose(file), free(line);
 	return filename;
@@ -64,8 +58,7 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 	while (fscanf(file, "%c", &token) != EOF) { 
 		if (token == ' ' || token == ')') {
 			while (strcmp(top(stack), "(")) {
-				if (strcmp(top(stack), "-") == 0) insert(tmplist, "_");
-				else insert(tmplist, top(stack));
+				insert(tmplist, top(stack));
 				pop(stack);
 			}
 			if (obj_sentinel == 1) {
@@ -129,7 +122,7 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 			else fprintf(tmpfile, "int %s", tmpstr[count_p]);
 			count++, count_p++;
 		}
-		else if (tokend == '-') {
+		else if (tokend == '_') {
 			char typename[100];
 			obj_sentinel = 1;
 			fscanf(domain_file, " %[^)|^ ]s", typename);
@@ -139,7 +132,6 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 		}
 		else if (tokend == '(') {
 			push(parenthesis_stack, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
-			hifen_to_underscore(str);
 			fprintf(domainc, "bool %s", str);
 			fprintf(tmpfile, "bool checktrue_%s(", str);
 		}
@@ -170,7 +162,6 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 	push(parenthesis_stack, '(');
 	char str[100];
 	fscanf(domain_file, "%s", str);
-	hifen_to_underscore(str);
 	fprintf(domainc, "struct %s {\n", str);
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		if (tokend == ' ' || tokend == '(')
@@ -210,13 +201,11 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 							}
 							if (!sig && !dummyflag) {
 								char *preid = list_to_str(precondition);
-								hifen_to_underscore(preid);
 								if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
 								else fprintf(domainc, "checktrue_%s(", preid);
 								free(preid), flag = 0, dummyflag = 1;
 							} else if (!sig && dummyflag) {
 								char *arg = list_to_str(precondition);
-								hifen_to_underscore(arg);
 								if (sigarg) fprintf(domainc, ", %s", arg);
 								else fprintf(domainc, "%s", arg), sigarg = 1;
 								free(arg);
@@ -225,7 +214,6 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
-							hifen_to_underscore(arg);
 							if (sigarg) fprintf(domainc, ", s.%s", arg+1);
 							else fprintf(domainc, "s.%s", arg+1), sigarg = 1;
 							free(arg);
@@ -260,13 +248,11 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 								continue;
 							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
 							char *predicate = list_to_str(effect);
-							hifen_to_underscore(predicate);
 							fprintf(domainc, "\t%s", predicate);
 							free(predicate);
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(effect);
-							hifen_to_underscore(arg);
 							fprintf(domainc, "[s.%s]", arg+1);
 							free(arg);
 						}
@@ -303,12 +289,10 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 		char str[100];
 		if (tokenp == ' ' && amount(parenthesis_stack) == 2) {
 			fscanf(problem_file, "%[^)|^ ]s", str);
-			hifen_to_underscore(str);
 			fprintf(domainc, "[%s]", str);
 		}
 		else if (tokenp == '(') {
 			push(parenthesis_stack, tokenp), fscanf(problem_file, "%[^)|^ ]s", str);
-			hifen_to_underscore(str);
 			fprintf(domainc, "\t%s", str);
 		}
 		else if (tokenp == ')') {
