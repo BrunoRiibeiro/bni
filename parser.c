@@ -12,7 +12,7 @@ void create_enums(FILE *f, SymbolTable *st) {
 	Node_st *aux = st->head;
 	while (aux) {
 		fprintf(f, "enum %s {\n", aux->data.id);
-		Node *obj_list = aux->data.list.head;
+		Node *obj_list = aux->data.list->head;
 		while (obj_list) {
 			fprintf(f, "\t%s,\n", obj_list->data);
 			obj_list = obj_list->next;
@@ -31,7 +31,7 @@ void hifen_to_underscore(char *s) {
 
 char *preprocess_file(const char *f) {
 	size_t linecap = 0;
-	char token, *line = NULL, *filename = malloc(sizeof(f) + 10);
+	char token, *line = NULL, *filename = malloc(strlen(f) + 10);
 	sprintf(filename, "/tmp%s", strrchr(f, '/'));
 	FILE *basefile = fopen(f, "r"), *file = fopen(filename, "w");
 	if (basefile == NULL) {
@@ -58,7 +58,8 @@ void cat(const char *fname, FILE *f2) {
 	return;
 }
 
-void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, LinkedList *tmplist, char token) {
+void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, char token) {
+	LinkedList *tmplist = create_list(); 
 	unsigned short count = 0;
 	while (fscanf(file, "%c", &token) != EOF) { 
 		if (token == ' ' || token == ')') {
@@ -75,15 +76,16 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 			} 
 			if (token == ')' && strcmp(top(stack), "(") == 0) {
 				if (!is_empty_list(tmplist)) {
-					insert(hl, list_to_str(tmplist));
+					char *obj = list_to_str(tmplist);
+					insert(hl, obj);
+					free(obj);
 					count++;
 				}
 				if (!is_empty_list(hl)) {
 					add_st(st, "obj", count, hl);
 					free_list(tmplist), free_list(hl);
 				}
-				free_list(tmplist);
-				free_list(hl);
+				free_list(tmplist), free_list(hl);
 				break;
 			}
 		}
@@ -97,6 +99,7 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 		if (token != ' ') push(stack, token);
 		free_list(tmplist);
 	}
+	free(tmplist);
 	return;
 }
 
@@ -238,7 +241,7 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 				free_list(precondition);
 			}
 			fprintf(domainc, ");\n}\n");
-			free(precondition);
+			free(precondition), free_stack(operators);
 		} else if (strcmp_list(ha, ":effect") == 0) {
 			fprintf(domainc, "void apply_%s(struct %s s) {\n", str, str);
 			LinkedList *effect = create_list();
@@ -255,6 +258,7 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
 							char *predicate = list_to_str(effect);
 							fprintf(domainc, "\t%s", predicate);
+							free(predicate);
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(effect);
@@ -334,7 +338,7 @@ int main(int argc, char *argv[]) {
 	}
 	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack();
 	char tokend, tokenp;
-	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list(), *tmplist = create_list();
+	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list();
 	SymbolTable *st = create_st();
 	fprintf(domainc, "#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
 
@@ -345,7 +349,7 @@ int main(int argc, char *argv[]) {
 			stack_to_list(problem, hp);
 			// Tratamento dos dados do  bloco "objects" até encontrar ")".
 			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
-				constants_n_objects(problem_file, st, problem, hl, tmplist, tokenp);
+				constants_n_objects(problem_file, st, problem, hl, tokenp);
 				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
 				break;
 			}
@@ -364,7 +368,7 @@ int main(int argc, char *argv[]) {
 		if (tokend == ' ' || tokend == '(' || tokend == ')') {
 			stack_to_list(domain, hd);
 			if (strcmp_list(hd, ":constants") == 0)
-				constants_n_objects(domain_file, st, domain, hl, tmplist, tokend);
+				constants_n_objects(domain_file, st, domain, hl, tokend);
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
@@ -399,9 +403,10 @@ int main(int argc, char *argv[]) {
 	/* -----------free-n-close------------------- */
 	fclose(domain_file), fclose(problem_file), fclose(domainc);
 	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
-	free_list(hp), free_list(hd), free_list(hl), free_list(tmplist);
-	free(hp), free(hd), free(hl), free(tmplist);
+	free_list(hp), free_list(hd), free_list(hl);
+	free(hp), free(hd), free(hl);
 	free_st(st);
 	remove(domain_file_name), remove(problem_file_name);
+	free(domain_file_name), free(problem_file_name);
 	return 0;
 }

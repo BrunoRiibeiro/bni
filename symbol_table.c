@@ -13,8 +13,9 @@ int transcribe_list(Node_st *node, LinkedList *list) {
 		char *obj = malloc(strlen(aux->data) + 1);
 		if (obj == NULL) return 0;
 		strcpy(obj, aux->data);
-		insert(&node->data.list, obj);
+		insert(node->data.list, obj);
 		aux = aux->next;
+		free(obj);
 	}
 	return 1;
 }
@@ -29,11 +30,16 @@ int insert_st(SymbolTable *h, const char *id, unsigned long long int qtd, Linked
 	}
 	strcpy(new_node->data.id, id);
 	new_node->data.qtd = qtd;
-	new_node->next = h->head;
-	h->head = new_node;
-	new_node->data.list = *create_list();
-	if (transcribe_list(new_node, list)) return 1;
-	else return 0;
+	new_node->data.list = create_list();
+	if (transcribe_list(new_node, list)) {
+		new_node->next = h->head;
+		h->head = new_node;
+		return 1;
+	} else {
+		free(new_node->data.id);
+		free(new_node);
+		return 0;
+	}
 }
 
 int add_st(SymbolTable *h, const char *id, unsigned long long int qtd, LinkedList *list) {
@@ -41,21 +47,19 @@ int add_st(SymbolTable *h, const char *id, unsigned long long int qtd, LinkedLis
 	while (aux != NULL) {
 		if (strcmp(aux->data.id, id) == 0) {
 			aux->data.qtd += qtd;
-			if (transcribe_list(aux, list)) return 1;
-			else return 0;
+			return transcribe_list(aux, list);
 		}
 		aux = aux->next;
 	}
-	if (insert_st(h, id, qtd, list)) return 1;
-	else return 0;
+	return insert_st(h, id, qtd, list);
 }
 
 void free_st(SymbolTable *h) {
 	while (h->head != NULL) {
 		Node_st *aux = h->head;
 		h->head = h->head->next;
-		free_list(&aux->data.list);
-		free(aux);
+		free_list(aux->data.list);
+		free(aux->data.list), free(aux->data.id), free(aux);
 	}
 	free(h);
 }
@@ -74,7 +78,7 @@ void print_st(SymbolTable *h) {
 	Node_st *aux = h->head;
 	while (aux != NULL) {
 		printf("id: %s, qtd: %ld\n", aux->data.id, aux->data.qtd);
-		print_list(&aux->data.list);
+		print_list(aux->data.list);
 		aux = aux->next;
 	}
 }

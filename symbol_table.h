@@ -5,7 +5,7 @@
 #include "linked_list.h"
 
 typedef struct Item_st {
-	LinkedList list;
+	LinkedList *list;
 	char *id;
 	size_t qtd;
 }Item_st;
