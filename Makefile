@@ -40,3 +40,9 @@ rod:
 	./parser test/domain-old.pddl test/problem-old.pddl
 rtl:
 	./parser test/domain-tele.pddl test/problem-tele.pddl
+rfga:
+	./parser test/domain-fga.pddl test/problem-fga.pddl
+rcf:
+	./parser test/domain-cafe.pddl test/problem-cafe.pddl
+rmd:
+	./parser test/domain-mercado.pddl test/problem-mercado.pddl
