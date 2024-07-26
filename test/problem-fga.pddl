@@ -22,6 +22,7 @@
    (Ligado PistaCooper Avenida)
    (Ligado Avenida BrT)
    (estou-em S7)
+   (lugar-eh S7 S7)
    (passei-em S7)
    (comprou-dindin0)
  ) 
