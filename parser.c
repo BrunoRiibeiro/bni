@@ -96,13 +96,13 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 	return;
 }
 
-void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parenthesis_stack, char tokend) {
-	FILE *tmpfile = fopen("/tmp/tmpfile", "a");
-	create_enums(domainc, st);
+void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st, Stack *parenthesis_stack, char tokend) {
+	FILE *tmpfilec = fopen("/tmp/tmpfilec", "a"), *tmpfileh = fopen("/tmp/tmpfileh", "a");
+	create_enums(domainh, st);
 	push(parenthesis_stack, '(');
 	// count = quantos '?' em uma linha.
 	unsigned short count = 0, count_p = 0;
-	char str[100];
+	char str[100], tmpstr[30][100];
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		// str = nome do predicado.
 		/* caso:
@@ -115,11 +115,10 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 		       return precon[tmb];
 		   }
 		*/
-		char tmpstr[30][100];
 		if (tokend == '?') {
 			fscanf(domain_file, " %[^)|^ ]s", tmpstr[count_p]);
-			if (count_p > 0) fprintf(tmpfile, ", int %s", tmpstr[count_p]);
-			else fprintf(tmpfile, "int %s", tmpstr[count_p]);
+			if (count_p > 0) fprintf(tmpfilec, ", int %s", tmpstr[count_p]), fprintf(tmpfileh, ", int %s", tmpstr[count_p]);
+			else fprintf(tmpfilec, "int %s", tmpstr[count_p]), fprintf(tmpfileh, "int %s", tmpstr[count_p]);
 			count++, count_p++;
 		}
 		else if (tokend == '_') {
@@ -127,42 +126,44 @@ void predicates(FILE *domain_file, FILE *domainc, SymbolTable *st, Stack *parent
 			obj_sentinel = 1;
 			fscanf(domain_file, " %[^)|^ ]s", typename);
 			for (int i = 0; i < count; i++)
-				fprintf(domainc, "[%ld]", get_qtd(st, typename));
+				fprintf(domainh, "[%ld]", get_qtd(st, typename));
 			count = 0;
 		}
 		else if (tokend == '(') {
 			push(parenthesis_stack, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
-			fprintf(domainc, "bool %s", str);
-			fprintf(tmpfile, "bool checktrue_%s(", str);
+			fprintf(domainh, "bool %s", str);
+			fprintf(tmpfileh, "bool checktrue_%s(", str);
+			fprintf(tmpfilec, "bool checktrue_%s(", str);
 		}
 		else if (tokend == ')') {
 			pop(parenthesis_stack);
 			if (is_empty_stack(parenthesis_stack)) break;
 			if (!obj_sentinel) {
 				for (int i = 0; i < count; i++)
-					fprintf(domainc, "[%ld]", get_qtd(st, "obj"));
+					fprintf(domainh, "[%ld]", get_qtd(st, "obj"));
 				count = 0;
 			}
-			fprintf(tmpfile, ") {\n\treturn %s", str);
+			fprintf(tmpfilec, ") {\n\treturn %s", str);
+			fprintf(tmpfileh, ");\n");
 			for (int i = 0; i < count_p; i++)
-				fprintf(tmpfile, "[%s]", tmpstr[i]);
+				fprintf(tmpfilec, "[%s]", tmpstr[i]);
 			count_p = 0, obj_sentinel = 0;
-			fprintf(domainc, ";\n");
-			fprintf(tmpfile, ";\n}\n");
+			fprintf(domainh, ";\n");
+			fprintf(tmpfilec, ";\n}\n");
 		}
 	}
-	fclose(tmpfile);
-	cat("/tmp/tmpfile", domainc);
-	remove("/tmp/tmpfile");
+	fclose(tmpfilec), fclose(tmpfileh);
+	cat("/tmp/tmpfilec", domainc), cat("/tmp/tmpfileh", domainh);
+	remove("/tmp/tmpfilec"), remove("/tmp/tmpfileh");
 	return;
 }
 
-void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
+void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
 	LinkedList *ha = create_list();
 	push(parenthesis_stack, '(');
 	char str[100];
 	fscanf(domain_file, "%s", str);
-	fprintf(domainc, "struct %s {\n", str);
+	fprintf(domainh, "struct %s {\n", str);
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		if (tokend == ' ' || tokend == '(')
 			stack_to_list(domain, ha);
@@ -172,12 +173,13 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 				else if (tokend == '?') {
 					char parameters[100];
 					fscanf(domain_file, "%[^)|^ ]s", parameters);
-					fprintf(domainc, "\tint %s;\n", parameters);
+					fprintf(domainh, "\tint %s;\n", parameters);
 				}
 			}
-			fprintf(domainc, "};\n");
+			fprintf(domainh, "};\n");
 		} else if (strcmp_list(ha, ":precondition") == 0) {
 			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n\treturn ", str, str);
+			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", str, str);
 			LinkedList *precondition = create_list();
 			Stack *operators = create_stack();
 			char sigarg = 0, flag = 0, dummyflag = 0;
@@ -235,6 +237,7 @@ void action(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 			free(precondition), free_stack(operators);
 		} else if (strcmp_list(ha, ":effect") == 0) {
 			fprintf(domainc, "void apply_%s(struct %s s) {\n", str, str);
+			fprintf(domainh, "void apply_%s(struct %s s);\n", str, str);
 			LinkedList *effect = create_list();
 			char isnot = 1, flag = 0;
 			while (fscanf(domain_file, "%c", &tokend)) {
@@ -314,7 +317,8 @@ int main(int argc, char *argv[]) {
 
 	FILE *domain_file = fopen(domain_file_name, "r"), 
 		 *problem_file = fopen(problem_file_name, "r"), 
-		 *domainc = fopen("pddl.c", "w");
+		 *domainc = fopen("pddl.c", "w"),
+		 *domainh = fopen("pddl.h", "w");
 	if (domain_file == NULL) {
 		perror("Error opening domain file");
 		return 1;
@@ -322,14 +326,18 @@ int main(int argc, char *argv[]) {
 		perror("Erro opening problem file");
 		return 1;
 	} if (domainc == NULL ) {
-		perror("Erro opening problem file");
+		perror("Erro opening pddl.c");
+		return 1;
+	} if (domainh == NULL ) {
+		perror("Erro opening pddl.h");
 		return 1;
 	}
 	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack();
 	char tokend, tokenp;
 	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list();
 	SymbolTable *st = create_st();
-	fprintf(domainc, "#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
+	fprintf(domainc, "#include \"pddl.h\"\n\n");
+	fprintf(domainh, "#ifndef PDDL_H\n#define PDDL_H\n#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
 
 	// Problem parser :objects
 	while (fscanf(problem_file, "%c", &tokenp)) {
@@ -359,9 +367,9 @@ int main(int argc, char *argv[]) {
 			if (strcmp_list(hd, ":constants") == 0)
 				constants_n_objects(domain_file, st, domain, hl, tokend);
 			else if (strcmp_list(hd, ":predicates") == 0)
-				predicates(domain_file, domainc, st, parenthesis_stack, tokend);
+				predicates(domain_file, domainc, domainh, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
-				action(domain_file, domainc, domain, parenthesis_stack, tokend, act_count++);
+				action(domain_file, domainc, domainh, domain, parenthesis_stack, tokend, act_count++);
 			free_list(hd);
 		}
 		else push(domain, tokend); 
@@ -387,10 +395,11 @@ int main(int argc, char *argv[]) {
 			pop(problem);
 	}
 	fprintf(domainc, "\treturn 0;\n}\n");
+	fprintf(domainh, "#endif /* PDDL_H */\n");
 
 
 	/* -----------free-n-close------------------- */
-	fclose(domain_file), fclose(problem_file), fclose(domainc);
+	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(domainh);
 	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
 	free_list(hp), free_list(hd), free_list(hl);
 	free(hp), free(hd), free(hl);
