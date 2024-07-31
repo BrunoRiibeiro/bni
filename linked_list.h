@@ -21,7 +21,6 @@ int remove_first(LinkedList *h);
 int is_empty_list(LinkedList *h); 
 int strcmp_list(LinkedList *h, const char *str); 
 void print_list(LinkedList *h); 
-void set_uppercase(LinkedList *h); 
 int node_count(LinkedList *h);
 char* list_to_str(LinkedList *h);
 
