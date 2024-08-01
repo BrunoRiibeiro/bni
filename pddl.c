@@ -48,7 +48,7 @@ void check_show_mover(void) {
 		s.l2 = i0;
 		for (int i1 = 0; i1 < LENGTH_lugar; i1++) {
 			s.l1 = i1;
-			if(checktrue_mover(s)) show_mover();
+			if (checktrue_mover(s)) show_mover();
 		}
 	}
 }
@@ -63,7 +63,7 @@ void check_show_comprardindin1(void) {
 	struct comprardindin1 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if(checktrue_comprardindin1(s)) show_comprardindin1();
+		if (checktrue_comprardindin1(s)) show_comprardindin1();
 	}
 }
 bool checktrue_comprardindin2(struct comprardindin2 s) {
@@ -77,7 +77,7 @@ void check_show_comprardindin2(void) {
 	struct comprardindin2 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if(checktrue_comprardindin2(s)) show_comprardindin2();
+		if (checktrue_comprardindin2(s)) show_comprardindin2();
 	}
 }
 bool checktrue_comprardindin3(struct comprardindin3 s) {
@@ -91,7 +91,7 @@ void check_show_comprardindin3(void) {
 	struct comprardindin3 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if(checktrue_comprardindin3(s)) show_comprardindin3();
+		if (checktrue_comprardindin3(s)) show_comprardindin3();
 	}
 }
 void initialize(void) {

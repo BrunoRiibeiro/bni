@@ -214,7 +214,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stac
 			}
 			fprintf(domainh, "};\n");
 			for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
-			fprintf(tmpfile, "\tif(checktrue_%s(s)) show_%s();\n", act_name, act_name);
+			fprintf(tmpfile, "\tif (checktrue_%s(s)) show_%s();\n", act_name, act_name);
 			for (int i = 0; i < par_count; i++) {
 				for (int ii = par_count; ii > i; ii--) fprintf(tmpfile, "\t");
 				fprintf(tmpfile, "}\n");
