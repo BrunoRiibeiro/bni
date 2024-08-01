@@ -23,6 +23,8 @@ enum lugar {
 	brt,
 	LENGTH_lugar
 };
+extern const char *lugar_names[LENGTH_lugar];
+const char *get_lugar_names(enum lugar e);
 bool checktrue_ligado(int l1, int l2);
 bool checktrue_estou_em(int l);
 bool checktrue_passei_em(int l);

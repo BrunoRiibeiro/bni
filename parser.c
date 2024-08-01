@@ -8,17 +8,25 @@ const char* KEYWORDS[] = {"and", "or", "not", "forall", "when"};
 #define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
 char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
 
-void create_enums(FILE *f, SymbolTable *st) {
+void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 	Node_st *aux = st->head;
 	while (aux) {
-		fprintf(f, "enum %s {\n", aux->data.id);
+		fprintf(fh, "enum %s {\n", aux->data.id);
+		fprintf(fc, "const char *%s_names[LENGTH_%s] = {\n", aux->data.id, aux->data.id);
 		Node *obj_list = aux->data.list->head;
 		while (obj_list) {
-			fprintf(f, "\t%s,\n", obj_list->data);
+			fprintf(fh, "\t%s,\n", obj_list->data);
+			fprintf(fc, "\t\"%s\",\n", obj_list->data);
 			obj_list = obj_list->next;
 		}
-		fprintf(f, "\tLENGTH_%s\n", aux->data.id);
-		fprintf(f, "};\n");
+		fprintf(fh, "\tLENGTH_%s\n", aux->data.id);
+		fprintf(fh, "};\n");
+		fprintf(fc, "};\n");
+		fprintf(fh, "extern const char *%s_names[LENGTH_%s];\n", aux->data.id, aux->data.id);
+		fprintf(fh, "const char *get_%s_names(enum %s e);\n", aux->data.id, aux->data.id);
+		fprintf(fc, "const char *get_%s_names(enum %s e) {\n"
+					"	if (e >= 0 && e < LENGTH_%s)\n"
+					"		return %s_names[e];\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
 		aux = aux->next;
 	}
 }
@@ -99,7 +107,7 @@ void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *
 
 void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st, Stack *parenthesis_stack, char tokend) {
 	FILE *tmpfilec = fopen("/tmp/tmpfilec", "a"), *tmpfileh = fopen("/tmp/tmpfileh", "a");
-	create_enums(domainh, st);
+	create_enums(domainc, domainh, st);
 	push(parenthesis_stack, '(');
 	// count = quantos '?' em uma linha.
 	unsigned short count = 0, count_p = 0;

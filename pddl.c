@@ -1,5 +1,26 @@
 #include "pddl.h"
 
+const char *lugar_names[LENGTH_lugar] = {
+	"s7",
+	"corredors",
+	"escada",
+	"corredori",
+	"patio",
+	"io_uac",
+	"calcada_uac",
+	"calcada_ued",
+	"saidap1",
+	"dindingourmet",
+	"saidacarro1",
+	"saidap2",
+	"pistacooper",
+	"avenida",
+	"brt",
+};
+const char *get_lugar_names(enum lugar e) {
+	if (e >= 0 && e < LENGTH_lugar)
+		return lugar_names[e];
+}
 bool ligado[15][15];
 bool estou_em[15];
 bool passei_em[15];
