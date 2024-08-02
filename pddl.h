@@ -58,5 +58,6 @@ struct comprardindin3 {
 };
 bool checktrue_comprardindin3(struct comprardindin3 s);
 void apply_comprardindin3(struct comprardindin3 s);
+void show_actions(void);
 void initialize(void);
 #endif /* PDDL_H */

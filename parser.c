@@ -167,13 +167,14 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 	return;
 }
 
-void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
+void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
 	LinkedList *ha = create_list();
 	FILE *tmpfile = fopen("/tmp/tmpfile", "w");
 	push(parenthesis_stack, '(');
 	char act_name[100];
 	fscanf(domain_file, "%s", act_name);
 	fprintf(domainh, "void check_show_%s(void);\n", act_name);
+	fprintf(tmpshow, "\tcheck_show_%s();\n", act_name);
 	fprintf(tmpfile, "void check_show_%s(void) {\n\tstruct %s s;\n", act_name, act_name);
 	fprintf(domainh, "struct %s {\n", act_name);
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
@@ -182,6 +183,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stac
 		if (strcmp_list(ha, ":parameters") == 0) {
 			LinkedList *parameters_read = create_list();
 			LinkedList *parameters = create_list();
+			LinkedList *get_type_printf = create_list();
 			unsigned short int par_count = 0;
 			while (fscanf(domain_file, "%c", &tokend)) {
 				if ((tokend == ' ' || tokend == '(' || tokend == ')')) {
@@ -196,7 +198,10 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stac
 								fprintf(tmpfile, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", par_count, par_count, type, par_count);
 								for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
 								fprintf(tmpfile, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-								par_count++, remove_first(parameters);
+								char *gtp = malloc(strlen(type) + 20);
+								sprintf(gtp, ", get_%s_names(i%d)", type, par_count);
+								insert(get_type_printf, gtp);
+								par_count++, remove_first(parameters), free(gtp);
 							}
 						}
 						else {
@@ -213,6 +218,10 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stac
 							fprintf(tmpfile, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", par_count, par_count, par_count);
 							for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
 							fprintf(tmpfile, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
+							char gtp[20];
+							sprintf(gtp, ", get_obj_names(i%d)", par_count);
+							insert(get_type_printf, gtp);
+							par_count++, remove_first(parameters);
 							par_count++, remove_first(parameters);
 						}
 						break;
@@ -222,15 +231,22 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, Stack *domain, Stac
 			}
 			fprintf(domainh, "};\n");
 			for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
-			fprintf(tmpfile, "\tif (checktrue_%s(s)) show_%s();\n", act_name, act_name);
+			fprintf(tmpfile, "\tif (checktrue_%s(s)) printf(\"%s(", act_name, act_name);
+			for (int i = 0; i < par_count; i++)
+				if (i == 0) fprintf(tmpfile, "%%s");
+				else fprintf(tmpfile, ", %%s");
+			fprintf(tmpfile, ")\\n\"");
+			while (!is_empty_list(get_type_printf))
+				fprintf(tmpfile, "%s", get_type_printf->head->data), remove_first(get_type_printf);
+			fprintf(tmpfile, ");\n");
 			for (int i = 0; i < par_count; i++) {
 				for (int ii = par_count; ii > i; ii--) fprintf(tmpfile, "\t");
 				fprintf(tmpfile, "}\n");
 			}
 			fprintf(tmpfile, "}\n");
 			fclose(tmpfile);
-			free_list(parameters_read), free_list(parameters);
-			free(parameters_read), free(parameters);
+			free_list(parameters_read), free_list(parameters), free_list(get_type_printf);
+			free(parameters_read), free(parameters), free(get_type_printf);
 		} else if (strcmp_list(ha, ":precondition") == 0) {
 			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n\treturn ", act_name, act_name);
 			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", act_name, act_name);
@@ -380,7 +396,8 @@ int main(int argc, char *argv[]) {
 	FILE *domain_file = fopen(domain_file_name, "r"), 
 		 *problem_file = fopen(problem_file_name, "r"), 
 		 *domainc = fopen("pddl.c", "w"),
-		 *domainh = fopen("pddl.h", "w");
+		 *domainh = fopen("pddl.h", "w"),
+		 *tmpshow = fopen("/tmp/tmpshow", "w");
 	if (domain_file == NULL) {
 		perror("Error opening domain file");
 		return 1;
@@ -393,12 +410,16 @@ int main(int argc, char *argv[]) {
 	} if (domainh == NULL ) {
 		perror("Erro opening pddl.h");
 		return 1;
+	} if (tmpshow == NULL ) {
+		perror("Erro opening /tmp/tmpshow");
+		return 1;
 	}
+
 	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack();
 	char tokend, tokenp;
 	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list();
 	SymbolTable *st = create_st();
-	fprintf(domainc, "#include \"pddl.h\"\n\n");
+	fprintf(domainc, "#include <stdio.h>\n#include \"pddl.h\"\n\n");
 	fprintf(domainh, "#ifndef PDDL_H\n#define PDDL_H\n#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
 
 	// Problem parser :objects
@@ -431,14 +452,19 @@ int main(int argc, char *argv[]) {
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, domainh, st, parenthesis_stack, tokend);
 			else if (strcmp_list(hd, ":action") == 0)
-				action(domain_file, domainc, domainh, domain, parenthesis_stack, tokend, act_count++);
+				action(domain_file, domainc, domainh, tmpshow, domain, parenthesis_stack, tokend, act_count++);
 			free_list(hd);
 		}
 		else push(domain, tokend); 
 		if (tokend == ')' && strcmp(top(domain), "(") == 0)
 			pop(domain);
 	}
-
+	fclose(tmpshow);
+	fprintf(domainh, "void show_actions(void);\n");
+	fprintf(domainc, "void show_actions(void) {\n");
+	cat("/tmp/tmpshow", domainc);
+	remove("/tmp/tmpshow");
+	fprintf(domainc, "}\n");
 	// Problem parser :init
 	fprintf(domainc, "void initialize(void) {\n");
 	fprintf(domainh, "void initialize(void);\n");
