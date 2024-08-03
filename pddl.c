@@ -21,6 +21,7 @@ const char *lugar_names[LENGTH_lugar] = {
 const char *get_lugar_names(enum lugar e) {
 	if (e >= 0 && e < LENGTH_lugar)
 		return lugar_names[e];
+	return NULL;
 }
 bool ligado[15][15];
 bool estou_em[15];
@@ -70,7 +71,7 @@ void check_show_mover(void) {
 		s.l2 = i0;
 		for (int i1 = 0; i1 < LENGTH_lugar; i1++) {
 			s.l1 = i1;
-			if (checktrue_mover(s)) printf("mover(%s, %s)\n", get_lugar_names(i1), get_lugar_names(i0));
+			if (checktrue_mover(s)) printf("  - mover(%s, %s)\n", get_lugar_names(i1), get_lugar_names(i0));
 		}
 	}
 }
@@ -85,7 +86,7 @@ void check_show_comprardindin1(void) {
 	struct comprardindin1 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if (checktrue_comprardindin1(s)) printf("comprardindin1(%s)\n", get_lugar_names(i0));
+		if (checktrue_comprardindin1(s)) printf("  - comprardindin1(%s)\n", get_lugar_names(i0));
 	}
 }
 bool checktrue_comprardindin2(struct comprardindin2 s) {
@@ -99,7 +100,7 @@ void check_show_comprardindin2(void) {
 	struct comprardindin2 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if (checktrue_comprardindin2(s)) printf("comprardindin2(%s)\n", get_lugar_names(i0));
+		if (checktrue_comprardindin2(s)) printf("  - comprardindin2(%s)\n", get_lugar_names(i0));
 	}
 }
 bool checktrue_comprardindin3(struct comprardindin3 s) {
@@ -113,7 +114,7 @@ void check_show_comprardindin3(void) {
 	struct comprardindin3 s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l1 = i0;
-		if (checktrue_comprardindin3(s)) printf("comprardindin3(%s)\n", get_lugar_names(i0));
+		if (checktrue_comprardindin3(s)) printf("  - comprardindin3(%s)\n", get_lugar_names(i0));
 	}
 }
 void show_actions(void) {

@@ -26,7 +26,8 @@ void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 		fprintf(fh, "const char *get_%s_names(enum %s e);\n", aux->data.id, aux->data.id);
 		fprintf(fc, "const char *get_%s_names(enum %s e) {\n"
 					"	if (e >= 0 && e < LENGTH_%s)\n"
-					"		return %s_names[e];\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
+					"		return %s_names[e];\n"
+					"	return NULL;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
 		aux = aux->next;
 	}
 }
@@ -231,7 +232,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, Stac
 			}
 			fprintf(domainh, "};\n");
 			for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
-			fprintf(tmpfile, "\tif (checktrue_%s(s)) printf(\"%s(", act_name, act_name);
+			fprintf(tmpfile, "\tif (checktrue_%s(s)) printf(\"  - %s(", act_name, act_name);
 			for (int i = 0; i < par_count; i++)
 				if (i == 0) fprintf(tmpfile, "%%s");
 				else fprintf(tmpfile, ", %%s");
