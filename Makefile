@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-OPT = -O2
+OPT = -O3
 CFLAGS = -Iinclude
 DEBUG_FLAGS = -ggdb3
 READLINE_FLAGS = -lreadline
