@@ -1,10 +1,13 @@
 # Compiler and flags
 CC = gcc
+OPT = -O2
 CFLAGS = -Iinclude
 DEBUG_FLAGS = -ggdb3
+READLINE_FLAGS = -lreadline
 
 # Source and object files
 SRC = parser.c linked_list.c stack.c symbol_table.c
+REPL_SRC = repl.c
 OBJ = $(SRC:.c=.o)
 TARGET = parser
 
@@ -17,11 +20,15 @@ $(TARGET): $(OBJ)
 
 # Compile source files to object files
 %.o: %.c
-	$(CC) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+	$(CC) $(OPT) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+
+# Complile REPL and pddl.c
+repl:
+	$(CC) $(OPT) $(READLINE_FLAGS) $(REPL_SRC) pddl.c -o $@
 
 # Clean up build files
 clean:
-	rm -f $(OBJ) $(TARGET) pddl.c
+	rm -f $(OBJ) $(TARGET) repl pddl.c pddl.h
 
 # Run with valgrind
 valgrind:
