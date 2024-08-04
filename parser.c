@@ -35,7 +35,7 @@ void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 char *preprocess_file(const char *f) {
 	size_t linecap = 0;
 	char token, *line = NULL, *filename = malloc(strlen(f) + 10);
-	sprintf(filename, "/tmp%s", strrchr(f, '/'));
+	snprintf(filename, (strlen(f)+10), "/tmp%s", strrchr(f, '/'));
 	FILE *basefile = fopen(f, "r"), *file = fopen(filename, "w");
 	if (basefile == NULL) {
 		perror("Error opening base file in preprocessing file step.");
@@ -200,7 +200,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, Stac
 								for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
 								fprintf(tmpfile, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
 								char *gtp = malloc(strlen(type) + 20);
-								sprintf(gtp, ", get_%s_names(i%d)", type, par_count);
+								snprintf(gtp, (strlen(type)+20), ", get_%s_names(i%hd)", type, par_count);
 								insert(get_type_printf, gtp);
 								par_count++, remove_first(parameters), free(gtp);
 							}
@@ -219,8 +219,8 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, Stac
 							fprintf(tmpfile, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", par_count, par_count, par_count);
 							for (int i = 0; i < par_count; i++) fprintf(tmpfile, "\t");
 							fprintf(tmpfile, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-							char gtp[20];
-							sprintf(gtp, ", get_obj_names(i%d)", par_count);
+							char gtp[25];
+							snprintf(gtp, 25, ", get_obj_names(i%hd)", par_count);
 							insert(get_type_printf, gtp);
 							par_count++, remove_first(parameters);
 							par_count++, remove_first(parameters);
