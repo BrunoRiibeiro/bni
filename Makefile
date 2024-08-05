@@ -2,6 +2,7 @@
 CC = gcc
 OPT = -O3
 CFLAGS = -Iinclude
+PDDL_FLAGS = -I$(PREFIX)
 DEBUG_FLAGS = -ggdb3
 READLINE_FLAGS = -lreadline
 
@@ -10,6 +11,7 @@ SRC = parser.c linked_list.c stack.c symbol_table.c
 REPL_SRC = repl.c
 OBJ = $(SRC:.c=.o)
 TARGET = parser
+PREFIX := $(CURDIR)
 
 # Default target
 all: $(TARGET)
@@ -24,7 +26,7 @@ $(TARGET): $(OBJ)
 
 # Complile REPL and pddl.c
 repl:
-	$(CC) $(OPT) $(READLINE_FLAGS) $(REPL_SRC) pddl.c -o $@
+	$(CC) $(OPT) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(PREFIX)/pddl.c -o $(PREFIX)/$@
 
 # Clean up build files
 clean:
