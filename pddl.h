@@ -23,7 +23,10 @@ enum lugar {
 	brt,
 	LENGTH_lugar
 };
-extern const char *lugar_names[LENGTH_lugar];
+typedef struct lugarMap {
+	const char *str;
+	enum lugar value;
+}lugarMap;
 const char *get_lugar_names(enum lugar e);
 bool checktrue_ligado(int l1, int l2);
 bool checktrue_estou_em(int l);
@@ -59,5 +62,6 @@ struct comprardindin3 {
 bool checktrue_comprardindin3(struct comprardindin3 s);
 void apply_comprardindin3(struct comprardindin3 s);
 void show_actions(void);
+int apply_actions(char *s);
 void initialize(void);
 #endif /* PDDL_H */

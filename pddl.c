@@ -1,27 +1,33 @@
 #include <stdio.h>
 #include "pddl.h"
 
-const char *lugar_names[LENGTH_lugar] = {
-	"s7",
-	"corredors",
-	"escada",
-	"corredori",
-	"patio",
-	"io_uac",
-	"calcada_uac",
-	"calcada_ued",
-	"saidap1",
-	"dindingourmet",
-	"saidacarro1",
-	"saidap2",
-	"pistacooper",
-	"avenida",
-	"brt",
+lugarMap lugar_map[LENGTH_lugar] = {
+	{"s7", s7},
+	{"corredors", corredors},
+	{"escada", escada},
+	{"corredori", corredori},
+	{"patio", patio},
+	{"io_uac", io_uac},
+	{"calcada_uac", calcada_uac},
+	{"calcada_ued", calcada_ued},
+	{"saidap1", saidap1},
+	{"dindingourmet", dindingourmet},
+	{"saidacarro1", saidacarro1},
+	{"saidap2", saidap2},
+	{"pistacooper", pistacooper},
+	{"avenida", avenida},
+	{"brt", brt},
 };
 const char *get_lugar_names(enum lugar e) {
 	if (e >= 0 && e < LENGTH_lugar)
-		return lugar_names[e];
+		return lugar_map[e].str;
 	return NULL;
+}
+enum lugar get_lugar_enum(const char *s) {
+	for (int i = 0; lugar_map[i].str != NULL; i++)
+		if (strcmp(s, lugar_map[i].str) == 0)
+			return lugar_map[i].value;
+	return LENGTH_lugar;
 }
 bool ligado[15][15];
 bool estou_em[15];
@@ -71,7 +77,7 @@ void check_show_mover(void) {
 		s.l2 = i0;
 		for (int i1 = 0; i1 < LENGTH_lugar; i1++) {
 			s.l1 = i1;
-			if (checktrue_mover(s)) printf("  - mover(%s, %s)\n", get_lugar_names(i1), get_lugar_names(i0));
+			if (checktrue_mover(s)) printf("  - mover(%s,%s)\n", get_lugar_names(i1), get_lugar_names(i0));
 		}
 	}
 }
@@ -122,6 +128,52 @@ void show_actions(void) {
 	check_show_comprardindin1();
 	check_show_comprardindin2();
 	check_show_comprardindin3();
+}
+int apply_actions(char *s) {
+	const char *basename = strsep(&s, "(");
+	if (strcmp(basename, "mover") == 0) {
+		struct mover tcurts;
+		char *token;
+		token = strsep(&s, ",");
+		tcurts.l1 = get_lugar_enum(strsep(&token, ")"));
+		token = strsep(&s, ",");
+		tcurts.l2 = get_lugar_enum(strsep(&token, ")"));
+		if (checktrue_mover(tcurts)) {
+			apply_mover(tcurts);
+			return 0;
+		} else return 1;
+	}
+	if (strcmp(basename, "comprardindin1") == 0) {
+		struct comprardindin1 tcurts;
+		char *token;
+		token = strsep(&s, ",");
+		tcurts.l1 = get_lugar_enum(strsep(&token, ")"));
+		if (checktrue_comprardindin1(tcurts)) {
+			apply_comprardindin1(tcurts);
+			return 0;
+		} else return 1;
+	}
+	if (strcmp(basename, "comprardindin2") == 0) {
+		struct comprardindin2 tcurts;
+		char *token;
+		token = strsep(&s, ",");
+		tcurts.l1 = get_lugar_enum(strsep(&token, ")"));
+		if (checktrue_comprardindin2(tcurts)) {
+			apply_comprardindin2(tcurts);
+			return 0;
+		} else return 1;
+	}
+	if (strcmp(basename, "comprardindin3") == 0) {
+		struct comprardindin3 tcurts;
+		char *token;
+		token = strsep(&s, ",");
+		tcurts.l1 = get_lugar_enum(strsep(&token, ")"));
+		if (checktrue_comprardindin3(tcurts)) {
+			apply_comprardindin3(tcurts);
+			return 0;
+		} else return 1;
+	}
+	return 2;
 }
 void initialize(void) {
 	ligado[s7][corredors] = true;
