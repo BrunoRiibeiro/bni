@@ -7,8 +7,10 @@ DEBUG_FLAGS = -ggdb3
 READLINE_FLAGS = -lreadline
 
 # Source and object files
-SRC = parser.c linked_list.c stack.c symbol_table.c
-REPL_SRC = repl.c
+SRC_DIR := src
+REPL_DIR := src
+SRC := $(SRC_DIR)/parser.c $(SRC_DIR)/linked_list.c $(SRC_DIR)/stack.c $(SRC_DIR)/symbol_table.c
+REPL_SRC := $(REPL_DIR)/repl.c
 OBJ = $(SRC:.c=.o)
 TARGET = parser
 PREFIX := $(CURDIR)
