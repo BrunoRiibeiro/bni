@@ -35,7 +35,10 @@ void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 char *preprocess_file(const char *f) {
 	size_t linecap = 0;
 	char token, *line = NULL, *filename = malloc(strlen(f) + 10);
-	snprintf(filename, (strlen(f)+10), "/tmp%s", strrchr(f, '/'));
+	const char *basename = strrchr(f, '/');
+	if (basename == NULL) basename = f;
+	else basename++;
+	snprintf(filename, (strlen(f)+10), "/tmp/%s", basename);
 	FILE *basefile = fopen(f, "r"), *file = fopen(filename, "w");
 	if (basefile == NULL) {
 		perror("Error opening base file in preprocessing file step.");
