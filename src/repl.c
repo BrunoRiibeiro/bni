@@ -4,11 +4,6 @@
 #include <readline/history.h>
 #include "pddl.h"
 
-typedef struct Map {
-    char *name;
-    void (*func)();
-}Map;
-
 void printheader() {
     const char *header =
 		"\033[35m"
