@@ -8,7 +8,7 @@
 
 ;; bni.sh
 -----
-corrigir: `repl' is up to date.
+* corrigir: `repl' is up to date.
 -----
 
 ;; bloco precondition e effect 
@@ -16,6 +16,12 @@ corrigir: `repl' is up to date.
 * add forall e when
 * criar as macros FORALL, WHEN
 * operadores matematicos {=,+,-,>,<,...}
+------
+
+;; Pré processamento
+------
+* msgs de erro ()
+* indentacao
 ------
 
 
