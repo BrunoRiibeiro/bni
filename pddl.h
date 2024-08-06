@@ -64,4 +64,5 @@ void apply_comprardindin3(struct comprardindin3 s);
 void show_actions(void);
 int apply_actions(char *s);
 void initialize(void);
+bool checktrue_goal(void);
 #endif /* PDDL_H */

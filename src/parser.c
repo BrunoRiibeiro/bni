@@ -56,9 +56,9 @@ char *preprocess_file(const char *f) {
 	}
 	while (fscanf(basefile, "%c", &token) != EOF)
 		if (token == ';') getline(&line, &linecap, basefile);	
-		else if (token == '\t') fprintf(file, " ");
+		else if (token == '\t' || token == '\n') fprintf(file, " ");
 		else if (token == '-') fprintf(file, "_");
-		else if (token != '\n') fprintf(file, "%c", tolower(token));
+		else fprintf(file, "%c", tolower(token));
 	fclose(basefile), fclose(file), free(line);
 	return filename;
 }
@@ -274,8 +274,8 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 			}
 			fprintf(tmpfile_check_show, "}\n");
 			fclose(tmpfile_check_show);
-			free_list(parameters_read), free_list(parameters), free_list(get_type_printf);
-			free(parameters_read), free(parameters), free(get_type_printf);
+			free_list(parameters_read), free_list(parameters), free_list(get_type_printf), free_list(apply_act);
+			free(parameters_read), free(parameters), free(get_type_printf), free(apply_act);
 		} else if (strcmp_list(ha, ":precondition") == 0) {
 			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n\treturn ", act_name, act_name);
 			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", act_name, act_name);
@@ -386,8 +386,10 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 	return;
 }
 
-void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthesis_stack, char tokenp) {
+void init(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_stack, char tokenp) {
 	push(parenthesis_stack, '(');
+	fprintf(domainc, "void initialize(void) {\n");
+	fprintf(domainh, "void initialize(void);\n");
 	while (fscanf(problem_file, "%c", &tokenp) && !is_empty_stack(parenthesis_stack)) {
 		// str = nome do predicado.
 		char str[100];
@@ -405,14 +407,67 @@ void init(FILE *problem_file, FILE *domain_file, FILE *domainc, Stack *parenthes
 			fprintf(domainc, " = true;\n");
 		}
 	}
+	fprintf(domainc, "\treturn;\n}\n");
 	return;
 }
 
-//void create_show_actions(FILE *domainc, FILE *domainh) {
-//	fprintf(domainc, "void show_actions(void) {\n");
-//	fprintf(domainh, "void show_actions(void);\n");
-//	return;
-//}
+void goal(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_stack, char tokenp) {
+	push(parenthesis_stack, '(');
+	fprintf(domainc, "bool checktrue_goal(void) {\n\treturn ");
+	fprintf(domainh, "bool checktrue_goal(void);\n");
+	LinkedList *goal_cond = create_list();
+	Stack *clauses = create_stack(), *operators = create_stack();
+	char flag = 0, sigarg = 0;
+	while (fscanf(problem_file, "%c", &tokenp) != EOF && !is_empty_stack(parenthesis_stack)) {
+		if ((tokenp == ' ' || tokenp == '(' || tokenp == ')')) {
+			stack_to_list(clauses, goal_cond);
+			if (!is_empty_list(goal_cond)) {
+				char i;
+				for (i = 0; i < KEYWORDS_SIZE; i++) {
+					if (strcmp_list(goal_cond, KEYWORDS[i]) == 0) {
+						if (flag)
+							if (i == 2) fprintf(domainc, " %s !(", KEYWORDS[top(operators)[0]]);
+							else fprintf(domainc, " %s (", KEYWORDS[top(operators)[0]]);
+						else
+							if (i == 2) fprintf(domainc, "!(");
+							else fprintf(domainc, "(");
+						flag = 0;
+						break;
+					}
+				}
+				if (i == KEYWORDS_SIZE) {
+					char str[256], *cond = list_to_str(goal_cond);
+					if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], cond);
+					else fprintf(domainc, "checktrue_%s(", cond);
+					do {
+						if (tokenp == ' ') {
+							fscanf(problem_file, "%[^)|^ ]s", str);
+							if (sigarg) fprintf(domainc, ", %s", str);
+							else fprintf(domainc, "%s", str), sigarg = 1;
+						}
+						else if (tokenp == ')') break;
+					} while (fscanf(problem_file, "%c", &tokenp));
+					free(cond);
+				}
+				push(operators, i);
+			}
+			free_list(goal_cond);
+		}
+		else push(clauses, tokenp);
+		if (tokenp == '(') push(parenthesis_stack, tokenp);
+		else if (tokenp == ')') {
+			sigarg = 0, flag = 1;
+			pop(parenthesis_stack);
+			pop(operators);
+			if (is_empty_stack(parenthesis_stack)) break;
+			fprintf(domainc, ")");
+		}
+	}
+	free_stack(operators), free_stack(clauses);
+	free_list(goal_cond), free(goal_cond);
+	fprintf(domainc, ";\n}\n");
+	return;
+}
 
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
@@ -470,13 +525,12 @@ int main(int argc, char *argv[]) {
 		}
 		if (tokenp != ' ') push(problem, tokenp);
 	}
+	free_list(hp);
 
 	// Domain parser
 	obj_sentinel = 0;	
 	int act_count = 0;
 	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
-		// Ignora os comentários.
-		if (tokend == '(') push(domain, tokend);
 		// Inicia o tratamento dos dados do domínio.
 		if (tokend == ' ' || tokend == '(' || tokend == ')') {
 			stack_to_list(domain, hd);
@@ -489,6 +543,7 @@ int main(int argc, char *argv[]) {
 			free_list(hd);
 		}
 		else push(domain, tokend); 
+		if (tokend == '(') push(domain, tokend);
 		if (tokend == ')' && strcmp(top(domain), "(") == 0)
 			pop(domain);
 	}
@@ -505,29 +560,22 @@ int main(int argc, char *argv[]) {
 	remove("/tmp/tmpapply");
 	fprintf(domainc, "\treturn 2;\n}\n");
 
-	// Problem parser :init
-	fprintf(domainc, "void initialize(void) {\n");
-	fprintf(domainh, "void initialize(void);\n");
+	// Problem parser
 	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
-		if (tokenp == '(') push(problem, tokenp);
 		// Tratamento dos dados.
 		if (tokenp == ' ' || tokenp == '(' || tokenp == ')') {
-			// Transfere os tokens da pilha para a lista, para assim serem lidos como string (strcmp_list).
 			stack_to_list(problem, hp);
-			// Tratamento dos dados do  bloco ":init" até encontrar ")".
 			if (!is_empty_list(hp) && strcmp_list(hp, ":init") == 0)
-				init(problem_file, domain_file, domainc, parenthesis_stack, tokenp);
+				init(problem_file, domainc, domainh, parenthesis_stack, tokenp);
+			else if (!is_empty_list(hp) && strcmp_list(hp, ":goal") == 0)
+				goal(problem_file, domainc, domainh, parenthesis_stack, tokenp);
 			free_list(hp);
 		}
 		else push(problem, tokenp);
+		if (tokenp == '(') push(problem, tokenp);
 		if (tokenp == ')' && strcmp(top(problem), "(") == 0)
 			pop(problem);
 	}
-	fprintf(domainc, "\treturn;\n}\n");
-
-	/* FUNCOES REPL */
-	//create_show_actions(domainc, domainh);
-
 	fprintf(domainh, "#endif /* PDDL_H */\n");
 
 

@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <readline/readline.h>
@@ -19,11 +20,37 @@ void printheader() {
     printf("%s\n", header);
 }
 
+void to_uppercase(char *str) {
+	for (int i = 0; str[i] != '\0'; i++)
+		str[i] = toupper((unsigned char) str[i]);
+}
+
+int ask_yes_no(const char *question) {
+	char *response;
+	for ( ; ; ) {
+		response = readline(question);
+		to_uppercase(response);
+		if (response) {
+			if (strcmp(response, "Y") == 0 || strcmp(response, "YES") == 0) {
+				free(response);
+				return 1;
+			} else if (strcmp(response, "N") == 0 || strcmp(response, "NO") == 0) {
+				free(response);
+				return 0;
+			}
+			free(response);
+		}
+		printf("Please answer Y or N.\n");
+	}
+}
+
 int main(void) {
 	printheader();
 	initialize();
 	char *input;
-	while (1) {
+	for ( ; ; ) {
+		if (checktrue_goal())
+			if(!ask_yes_no("Goal has been hit! Do u want to continue? (Y/n)\n")) break;
 		printf("Please enter one of the currently available actions:\n");
 		show_actions();
 		input = readline(">> ");

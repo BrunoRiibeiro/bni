@@ -198,3 +198,6 @@ void initialize(void) {
 	comprou_dindin0 = true;
 	return;
 }
+bool checktrue_goal(void) {
+	return (checktrue_comprou_dindin2() and checktrue_estou_em(brt));
+}

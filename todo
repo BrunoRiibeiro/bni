@@ -3,12 +3,17 @@
 
 ;; REPL
 ------
-* iniciar o REPL
+;; funcoes basicas implementadas
 ------
+
+;; bni.sh
+-----
+corrigir: `repl' is up to date.
+-----
 
 ;; bloco precondition e effect 
 ------
-* add forall e when 	
+* add forall e when
 * criar as macros FORALL, WHEN
 * operadores matematicos {=,+,-,>,<,...}
 ------
