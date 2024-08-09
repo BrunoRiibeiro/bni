@@ -8,6 +8,87 @@ const char* KEYWORDS[] = {"and", "or", "not", "forall", "when"};
 #define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
 char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
 
+void create_forall_effect(FILE *toread, FILE *towrite) {
+	char token, par_count = 0, types_count = 0, sig = 0, flag = 0, isnot = 1, ii = 0;
+	Stack *parenthesis = create_stack(), *tokens = create_stack();
+	LinkedList *word = create_list(), *types_list = create_list();
+	// get forall types
+	while (fscanf(toread, "%c", &token)) { 
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(tokens, word);
+			if (!is_empty_list(word)) {
+				if (word->head->data[0] == '?') {
+					char *type = list_to_str(word);
+					insert(types_list, type+1);
+					par_count++, free(type);
+				}
+				if (strcmp_list(word, "_") == 0) sig = 1;
+				else if (sig == 1) {
+					char *type = list_to_str(word);
+					for (; ii < par_count; ii++) {
+						for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
+						fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", ii, ii, type, ii);
+					}
+					free(type), sig = 0, types_count++;
+				}
+			}
+		} else push(tokens, token);
+		if (token == ')') {
+			for (; ii < par_count; ii++) {
+				for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
+				fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", ii, ii, ii);
+			}
+			break;
+		}
+		free_list(word);
+	}
+	free_list(word);
+	while (fscanf(toread, "%c", &token)) { 
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(tokens, word);
+			if (!is_empty_list(word)) {
+				flag = 0;
+				if (word->head->data[0] != '?') {
+					if (strcmp_list(word, "not") == 0) {
+						isnot = 0, free_list(word);
+						continue;
+					} else if (strcmp_list(word, "forall") == 0) { 
+						create_forall_effect(toread, towrite); 
+						flag = 1, free_list(word);
+						continue;
+					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
+					char *predicate = list_to_str(word);
+					for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
+					fprintf(towrite, "\t%s", predicate);
+					free(predicate);
+				} else {
+					//add args dos predicados ?<...>
+					char *arg = list_to_str(word);
+					int index = ii - 1 - search_on(types_list, arg+1);
+					if (index == -1) fprintf(towrite, "[s.%s]", arg+1);
+					else fprintf(towrite, "[i%d]", index);
+					free(arg);
+				}
+			}
+		} else push(tokens, token);
+		if (token == '(') push(parenthesis, token);
+		else if (token == ')') {
+			pop(parenthesis);
+			if (is_empty_stack(parenthesis)) break;
+			if (flag == 0)
+				fprintf(towrite, " = %d;\n", isnot), isnot = 1;
+			flag = 1;
+		}
+		free_list(word);
+	}
+	for (int i = 0; i < ii; i++) {
+		for (int iii = i; iii < ii; iii++) fprintf(towrite, "\t");
+		fprintf(towrite, "}\n");
+	}
+	free_stack(parenthesis), free_stack(tokens);
+	free(word);
+}
+
 void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 	Node_st *aux = st->head;
 	while (aux) {
@@ -22,19 +103,19 @@ void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
 		fprintf(fh, "\tLENGTH_%s\n", aux->data.id);
 		fprintf(fh, "};\n");
 		fprintf(fh, "typedef struct %sMap {\n"
-					"	const char *str;\n"
-					"	enum %s value;\n}%sMap;\n", aux->data.id, aux->data.id, aux->data.id);
+				"	const char *str;\n"
+				"	enum %s value;\n}%sMap;\n", aux->data.id, aux->data.id, aux->data.id);
 		fprintf(fc, "};\n");
 		fprintf(fh, "const char *get_%s_names(enum %s e);\n", aux->data.id, aux->data.id);
 		fprintf(fc, "const char *get_%s_names(enum %s e) {\n"
-					"	if (e >= 0 && e < LENGTH_%s)\n"
-					"		return %s_map[e].str;\n"
-					"	return NULL;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
+				"	if (e >= 0 && e < LENGTH_%s)\n"
+				"		return %s_map[e].str;\n"
+				"	return NULL;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
 		fprintf(fc, "enum %s get_%s_enum(const char *s) {\n"
-					"	for (int i = 0; %s_map[i].str != NULL; i++)\n"
-					"		if (strcmp(s, %s_map[i].str) == 0)\n"
-					"			return %s_map[i].value;\n"
-					"	return LENGTH_%s;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id);
+				"	for (int i = 0; %s_map[i].str != NULL; i++)\n"
+				"		if (strcmp(s, %s_map[i].str) == 0)\n"
+				"			return %s_map[i].value;\n"
+				"	return LENGTH_%s;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id);
 		aux = aux->next;
 	}
 }
@@ -132,9 +213,9 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 		   tokend = ')' -> desempilha, caso esteja vazia encerra o tratamento do bloco :predicates. 
 		   Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
 		   bool check(int tmpstr, ...) {
-		       return precon[tmb];
+		   return precon[tmb];
 		   }
-		*/
+		 */
 		if (tokend == '?') {
 			fscanf(domain_file, " %[^)|^ ]s", tmpstr[count_p]);
 			if (count_p > 0) fprintf(tmpfilec, ", int %s", tmpstr[count_p]), fprintf(tmpfileh, ", int %s", tmpstr[count_p]);
@@ -347,6 +428,10 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 						if (effect->head->data[0] != '?') {
 							if (strcmp_list(effect, "not") == 0) {
 								isnot = 0, free_list(effect);
+								continue;
+							} else if (strcmp_list(effect, "forall") == 0) {
+								create_forall_effect(domain_file, domainc);
+								flag = 1, free_list(effect); 
 								continue;
 							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
 							char *predicate = list_to_str(effect);

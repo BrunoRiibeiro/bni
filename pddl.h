@@ -5,62 +5,33 @@
 #define and &&
 #define or ||
 
-enum lugar {
-	s7,
-	corredors,
-	escada,
-	corredori,
-	patio,
-	io_uac,
-	calcada_uac,
-	calcada_ued,
-	saidap1,
-	dindingourmet,
-	saidacarro1,
-	saidap2,
-	pistacooper,
-	avenida,
-	brt,
-	LENGTH_lugar
+enum cell {
+	c0_0,
+	c0_1,
+	c0_2,
+	c1_0,
+	c1_1,
+	c1_2,
+	c2_0,
+	c2_1,
+	c2_2,
+	LENGTH_cell
 };
-typedef struct lugarMap {
+typedef struct cellMap {
 	const char *str;
-	enum lugar value;
-}lugarMap;
-const char *get_lugar_names(enum lugar e);
-bool checktrue_ligado(int l1, int l2);
-bool checktrue_estou_em(int l);
-bool checktrue_passei_em(int l);
-bool checktrue_comprou_dindin0();
-bool checktrue_comprou_dindin1();
-bool checktrue_comprou_dindin2();
-bool checktrue_comprou_dindin3();
-bool checktrue_lugar_eh(int l1, int l2);
-void check_show_mover(void);
-struct mover {
-	enum lugar l2;
-	enum lugar l1;
+	enum cell value;
+}cellMap;
+const char *get_cell_names(enum cell e);
+bool checktrue_on(int c);
+bool checktrue_adj(int c0, int c1);
+bool checktrue_always_false(int c);
+bool checktrue_notype(int a);
+void check_show_click(void);
+struct click {
+	enum cell c;
 };
-bool checktrue_mover(struct mover s);
-void apply_mover(struct mover s);
-void check_show_comprardindin1(void);
-struct comprardindin1 {
-	enum lugar l1;
-};
-bool checktrue_comprardindin1(struct comprardindin1 s);
-void apply_comprardindin1(struct comprardindin1 s);
-void check_show_comprardindin2(void);
-struct comprardindin2 {
-	enum lugar l1;
-};
-bool checktrue_comprardindin2(struct comprardindin2 s);
-void apply_comprardindin2(struct comprardindin2 s);
-void check_show_comprardindin3(void);
-struct comprardindin3 {
-	enum lugar l1;
-};
-bool checktrue_comprardindin3(struct comprardindin3 s);
-void apply_comprardindin3(struct comprardindin3 s);
+bool checktrue_click(struct click s);
+void apply_click(struct click s);
 void show_actions(void);
 int apply_actions(char *s);
 void initialize(void);

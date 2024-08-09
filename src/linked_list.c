@@ -66,6 +66,17 @@ int node_count(LinkedList *h) {
 	return count;
 }
 
+int search_on(LinkedList *h, const char *s) {
+	Node *aux = h->head;
+	int index = 0;
+	while (aux != NULL) {
+		if (strcmp(aux->data, s) == 0)
+			return index;
+		aux = aux->next, index++;
+	}
+	return -1;
+}
+
 char* list_to_str(LinkedList *h) {
 	Node *aux = h->head;
 	char i = 0, *str = malloc(node_count(h) + 1);
