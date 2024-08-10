@@ -212,9 +212,6 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 		   tokend = '(' -> add na pilha de parenteses, printando bool com o nome da variavel.
 		   tokend = ')' -> desempilha, caso esteja vazia encerra o tratamento do bloco :predicates. 
 		   Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
-		   bool check(int tmpstr, ...) {
-		   return precon[tmb];
-		   }
 		 */
 		if (tokend == '?') {
 			fscanf(domain_file, " %[^)|^ ]s", tmpstr[count_p]);
@@ -294,7 +291,6 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 								fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", par_count, par_count, type, par_count);
 								for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
 								fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-								fprintf(tmpapply, "");
 								size_t toalloc = strlen(parameters->head->data) + strlen(type) + 80;
 								char *gtp = malloc(strlen(type) + 20), *stringao = malloc(toalloc);
 								snprintf(gtp, (strlen(type)+20), ", get_%s_names(i%hd)", type, par_count);
