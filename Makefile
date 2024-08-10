@@ -27,6 +27,7 @@ $(TARGET): $(OBJ)
 	$(CC) $(OPT) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
 
 # Complile REPL and pddl.c
+.PHONY: repl
 repl:
 	$(CC) $(OPT) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(PREFIX)/pddl.c -o $(PREFIX)/$@
 
