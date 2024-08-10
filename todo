@@ -1,15 +1,12 @@
-* :constants sem tipo podem ir para qualquer enum
-* match de parentesis
-
 ;; REPL
 ------
 ;; funcoes basicas implementadas
 ------
 
 ;; bni.sh
------
-* corrigir: `repl' is up to date.
------
+------
+;; add flag -o to change out_put file names
+------
 
 ;; bloco precondition e effect 
 ------
@@ -24,6 +21,7 @@
 * indentacao
 ------
 
+* :constants sem tipo podem ir para qualquer enum
 
 ;; temporariamente adiado, mudança da árvore para funções dinâmicas.
 ------
