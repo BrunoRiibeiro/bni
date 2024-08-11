@@ -9,7 +9,7 @@ function show_help {
 	echo
 	echo "Options:"
 	echo "  -o <file>        Specify the output file name (default: pddl.c/pddl.h)"
-	echo "  -r, --run-repl   Run the REPL executable after parsing PDD to C"
+	echo "  -r, --run-repl   Run the REPL executable after parsing PDDL to C"
 	echo "  -h, --help       Show this help message and exit"
 	exit 0
 }
@@ -30,7 +30,7 @@ done
 shift $((OPTIND-1))
 
 if [[ "$#" -ne 2 ]]; then
-	echo Usage: "$0" \<domain_file\> \<problem_file\>
+	echo Usage: "$0" \<domain_file\> \<problem_file\> >&2
 	exit 1
 fi
 
