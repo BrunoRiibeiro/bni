@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "symbol_table.h"
 #include "linked_list.h"
 #include "stack.h"
@@ -8,10 +9,17 @@ const char* KEYWORDS[] = {"and", "or", "not", "forall", "when"};
 #define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
 char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
 
-void create_forall_effect(FILE *toread, FILE *towrite) {
+void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 	char token, par_count = 0, types_count = 0, sig = 0, flag = 0, isnot = 1, ii = 0;
 	Stack *parenthesis = create_stack(), *tokens = create_stack();
-	LinkedList *word = create_list(), *types_list = create_list();
+	LinkedList *word = create_list(), *types_list;
+	va_list args;
+	va_start(args, op_args);
+	if (op_args >= 1) par_count = va_arg(args, int), ii = par_count;
+	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
+	else types_list = create_list();
+	va_end(args);
+	char fixed = par_count;
 	// get forall types
 	while (fscanf(toread, "%c", &token)) { 
 		if (token == ' ' || token == '(' || token == ')') {
@@ -53,7 +61,7 @@ void create_forall_effect(FILE *toread, FILE *towrite) {
 						isnot = 0, free_list(word);
 						continue;
 					} else if (strcmp_list(word, "forall") == 0) { 
-						create_forall_effect(toread, towrite); 
+						create_forall_effect(toread, towrite, 2, par_count, types_list); 
 						flag = 1, free_list(word);
 						continue;
 					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
@@ -81,8 +89,8 @@ void create_forall_effect(FILE *toread, FILE *towrite) {
 		}
 		free_list(word);
 	}
-	for (int i = 0; i < ii; i++) {
-		for (int iii = i; iii < ii; iii++) fprintf(towrite, "\t");
+	for (int i = fixed; i < ii; i++) {
+		for (int iii = 0; iii < ii; iii++) fprintf(towrite, "\t");
 		fprintf(towrite, "}\n");
 	}
 	free_stack(parenthesis), free_stack(tokens);
@@ -358,7 +366,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", act_name, act_name);
 			LinkedList *precondition = create_list();
 			Stack *operators = create_stack();
-			char sigarg = 0, flag = 0, dummyflag = 0;
+			char sigarg = 0, flag = 0, dummyflag = 0, has_to_verify = 0, has_empty = 0;
 			while (fscanf(domain_file, "%c", &tokend)) {
 				if ((tokend == ' ' || tokend == '(' || tokend == ')') && (amount(domain) != 2)) {
 					stack_to_list(domain, precondition);
@@ -373,7 +381,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 									else
 										if (i == 2) fprintf(domainc, "!(");
 										else fprintf(domainc, "(");
-									sig = 1, flag = 0;
+									sig = 1, flag = 0, has_empty = 1;
 									break;
 								}
 							}
@@ -381,11 +389,12 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 								char *preid = list_to_str(precondition);
 								if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
 								else fprintf(domainc, "checktrue_%s(", preid);
-								free(preid), flag = 0, dummyflag = 1;
+								free(preid), flag = 0, dummyflag = 1, has_to_verify = 1;
 							} else if (!sig && dummyflag) {
 								char *arg = list_to_str(precondition);
 								if (sigarg) fprintf(domainc, ", %s", arg);
 								else fprintf(domainc, "%s", arg), sigarg = 1;
+								pop(operators);
 								free(arg);
 							}
 							push(operators, i);
@@ -409,7 +418,9 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 				else if (tokend != ' ') push(domain, tokend);
 				free_list(precondition);
 			}
-			fprintf(domainc, ");\n}\n");
+			if (has_to_verify) fprintf(domainc, ");\n}\n");
+			else if (has_empty) fprintf(domainc, "true);\n}\n");
+			else fprintf(domainc, "true;\n}\n");
 			free(precondition), free_stack(operators);
 		} else if (strcmp_list(ha, ":effect") == 0) {
 			fprintf(domainc, "void apply_%s(struct %s s) {\n", act_name, act_name);
@@ -426,7 +437,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 								isnot = 0, free_list(effect);
 								continue;
 							} else if (strcmp_list(effect, "forall") == 0) {
-								create_forall_effect(domain_file, domainc);
+								create_forall_effect(domain_file, domainc, 0);
 								flag = 1, free_list(effect); 
 								continue;
 							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
