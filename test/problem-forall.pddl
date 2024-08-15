@@ -22,7 +22,6 @@
 		(estou-em S7)
 		(lugar-eh S7 S7)
 		(passei-em S7)
-		(comprou-dindin0)
 		(tem-dindin d1)
 		(tem-dindin d2)
 		(tem-dindin d3)

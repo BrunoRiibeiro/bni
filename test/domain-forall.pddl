@@ -22,5 +22,7 @@
 		:effect (forall (?d - dindin) (and (comprar-dindin ?d) 
 			(not (tem-dindin ?d)))))
 	(:action terremoto
+		:parameters ()
+		:precondition ()
 		:effect (forall (?l1 - lugar) (forall (?l2 - lugar)
 			(not (Ligado ?l1 ?l2))))))
