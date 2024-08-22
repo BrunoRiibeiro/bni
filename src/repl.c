@@ -17,12 +17,12 @@ int main(void) {
 		check_show_actions("/tmp/actions");
 		show_actions("/tmp/actions");
 		input = readline(">> ");
-		if (!input || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) { free(input); break; }
+		if (!input || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) break;
 		if (*input) add_history(input);
 		apply_actions(input);
 		free_names(), free(input);
 	}
-	free_names(), free(action_names);
+	free_names(), free(input), free(action_names);
 	return 0;
 }
 
