@@ -85,13 +85,13 @@ void apply_mover(struct mover s) {
 	lugar_eh[s.l1][s.l1] = 0;
 	lugar_eh[s.l2][s.l2] = 1;
 }
-void check_show_mover(void) {
+void check_show_mover(FILE *f) {
 	struct mover s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l2 = i0;
 		for (int i1 = 0; i1 < LENGTH_lugar; i1++) {
 			s.l1 = i1;
-			if (checktrue_mover(s)) printf("  - mover(%s,%s)\n", get_lugar_names(i1), get_lugar_names(i0));
+			if (checktrue_mover(s)) fprintf(f, "mover(%s,%s)\n", get_lugar_names(i1), get_lugar_names(i0));
 		}
 	}
 }
@@ -102,13 +102,13 @@ void apply_comprardindin(struct comprardindin s) {
 	comprar_dindin[s.d] = 1;
 	tem_dindin[s.d] = 0;
 }
-void check_show_comprardindin(void) {
+void check_show_comprardindin(FILE *f) {
 	struct comprardindin s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l = i0;
 		for (int i1 = 0; i1 < LENGTH_dindin; i1++) {
 			s.d = i1;
-			if (checktrue_comprardindin(s)) printf("  - comprardindin(%s,%s)\n", get_dindin_names(i1), get_lugar_names(i0));
+			if (checktrue_comprardindin(s)) fprintf(f, "comprardindin(%s,%s)\n", get_dindin_names(i1), get_lugar_names(i0));
 		}
 	}
 }
@@ -121,11 +121,11 @@ void apply_comprar_todos_dindin(struct comprar_todos_dindin s) {
 		tem_dindin[i0] = 0;
 	}
 }
-void check_show_comprar_todos_dindin(void) {
+void check_show_comprar_todos_dindin(FILE *f) {
 	struct comprar_todos_dindin s;
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
 		s.l = i0;
-		if (checktrue_comprar_todos_dindin(s)) printf("  - comprar_todos_dindin(%s)\n", get_lugar_names(i0));
+		if (checktrue_comprar_todos_dindin(s)) fprintf(f, "comprar_todos_dindin(%s)\n", get_lugar_names(i0));
 	}
 }
 bool checktrue_terremoto(struct terremoto s) {
@@ -138,15 +138,17 @@ void apply_terremoto(struct terremoto s) {
 		}
 	}
 }
-void check_show_terremoto(void) {
+void check_show_terremoto(FILE *f) {
 	struct terremoto s;
-	if (checktrue_terremoto(s)) printf("  - terremoto()\n");
+	if (checktrue_terremoto(s)) fprintf(f, "terremoto()\n");
 }
-void show_actions(void) {
-	check_show_mover();
-	check_show_comprardindin();
-	check_show_comprar_todos_dindin();
-	check_show_terremoto();
+void check_show_actions(const char *filename) {
+	FILE *f = fopen(filename, "w");
+	check_show_mover(f);
+	check_show_comprardindin(f);
+	check_show_comprar_todos_dindin(f);
+	check_show_terremoto(f);
+	fclose(f);
 }
 int apply_actions(char *s) {
 	const char *basename = strsep(&s, "(");

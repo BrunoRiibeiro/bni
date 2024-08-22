@@ -51,32 +51,32 @@ bool checktrue_passei_em(int l);
 bool checktrue_comprar_dindin(int d);
 bool checktrue_tem_dindin(int d);
 bool checktrue_lugar_eh(int l1, int l2);
-void check_show_mover(void);
+void check_show_mover(FILE *f);
 struct mover {
 	enum lugar l2;
 	enum lugar l1;
 };
 bool checktrue_mover(struct mover s);
 void apply_mover(struct mover s);
-void check_show_comprardindin(void);
+void check_show_comprardindin(FILE *f);
 struct comprardindin {
 	enum lugar l;
 	enum dindin d;
 };
 bool checktrue_comprardindin(struct comprardindin s);
 void apply_comprardindin(struct comprardindin s);
-void check_show_comprar_todos_dindin(void);
+void check_show_comprar_todos_dindin(FILE *f);
 struct comprar_todos_dindin {
 	enum lugar l;
 };
 bool checktrue_comprar_todos_dindin(struct comprar_todos_dindin s);
 void apply_comprar_todos_dindin(struct comprar_todos_dindin s);
-void check_show_terremoto(void);
+void check_show_terremoto(FILE *f);
 struct terremoto {
 };
 bool checktrue_terremoto(struct terremoto s);
 void apply_terremoto(struct terremoto s);
-void show_actions(void);
+void check_show_actions(const char *filename);
 int apply_actions(char *s);
 void initialize(void);
 bool checktrue_goal(void);

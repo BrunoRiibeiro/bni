@@ -270,9 +270,9 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 	push(parenthesis_stack, '(');
 	char act_name[100];
 	fscanf(domain_file, "%s", act_name);
-	fprintf(domainh, "void check_show_%s(void);\n", act_name);
-	fprintf(tmpshow, "\tcheck_show_%s();\n", act_name);
-	fprintf(tmpfile_check_show, "void check_show_%s(void) {\n\tstruct %s s;\n", act_name, act_name);
+	fprintf(domainh, "void check_show_%s(FILE *f);\n", act_name);
+	fprintf(tmpshow, "\tcheck_show_%s(f);\n", act_name);
+	fprintf(tmpfile_check_show, "void check_show_%s(FILE *f) {\n\tstruct %s s;\n", act_name, act_name);
 	fprintf(domainh, "struct %s {\n", act_name);
 	fprintf(tmpapply, "\tif (strcmp(basename, \"%s\") == 0) {\n", act_name);
 	fprintf(tmpapply, "\t\tstruct %s tcurts;\n", act_name);
@@ -342,7 +342,7 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 			for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
 			while (!is_empty_list(apply_act))
 				fprintf(tmpapply, "%s", apply_act->head->data), remove_first(apply_act);
-			fprintf(tmpfile_check_show, "\tif (checktrue_%s(s)) printf(\"  - %s(", act_name, act_name);
+			fprintf(tmpfile_check_show, "\tif (checktrue_%s(s)) fprintf(f, \"%s(", act_name, act_name);
 			fprintf(tmpapply, "\t\tif (checktrue_%s(tcurts)) {\n", act_name);
 			fprintf(tmpapply, "\t\t\tapply_%s(tcurts);\n", act_name);
 			fprintf(tmpapply, "\t\t\treturn 0;\n\t\t} else return 1;\n\t}\n");
@@ -640,11 +640,12 @@ int main(int argc, char *argv[]) {
 			pop(domain);
 	}
 	fclose(tmpshow), fclose(tmpapply);
-	fprintf(domainh, "void show_actions(void);\n");
-	fprintf(domainc, "void show_actions(void) {\n");
+	fprintf(domainh, "void check_show_actions(const char *filename);\n");
+	fprintf(domainc, "void check_show_actions(const char *filename) {\n");
+	fprintf(domainc, "\tFILE *f = fopen(filename, \"w\");\n");
 	cat("/tmp/tmpshow", domainc);
 	remove("/tmp/tmpshow");
-	fprintf(domainc, "}\n");
+	fprintf(domainc, "\tfclose(f);\n}\n");
 	fprintf(domainh, "int apply_actions(char *s);\n");
 	fprintf(domainc, "int apply_actions(char *s) {\n");
 	fprintf(domainc, "\tconst char *basename = strsep(&s, \"(\");\n");
