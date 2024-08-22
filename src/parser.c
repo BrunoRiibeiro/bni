@@ -1,13 +1,129 @@
-#include <stdio.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include "symbol_table.h"
-#include "linked_list.h"
-#include "stack.h"
+#include "parser.h"
 
-const char* KEYWORDS[] = {"and", "or", "not", "forall", "when"};
-#define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
+const char *KEYWORDS[] = {"and", "or", "not", "forall", "when"};
 char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
+
+int main(int argc, char *argv[]) {
+	if (argc != 3) {
+		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
+		return 1;
+	}
+	char *domain_file_name = argv[1], *problem_file_name = argv[2];
+	domain_file_name = preprocess_file(domain_file_name), problem_file_name = preprocess_file(problem_file_name);
+
+	FILE *domain_file = fopen(domain_file_name, "r"), 
+		 *problem_file = fopen(problem_file_name, "r"), 
+		 *domainc = fopen("pddl.c", "w"),
+		 *domainh = fopen("pddl.h", "w"),
+		 *tmpshow = fopen("/tmp/tmpshow", "w"),
+		 *tmpapply = fopen("/tmp/tmpapply", "w");
+	if (domain_file == NULL) {
+		perror("Error opening domain file");
+		return 1;
+	} if (problem_file == NULL) {
+		perror("Erro opening problem file");
+		return 1;
+	} if (domainc == NULL ) {
+		perror("Erro opening pddl.c");
+		return 1;
+	} if (domainh == NULL ) {
+		perror("Erro opening pddl.h");
+		return 1;
+	} if (tmpshow == NULL ) {
+		perror("Erro opening /tmp/tmpshow");
+		return 1;
+	} if (tmpapply == NULL ) {
+		perror("Erro opening /tmp/tmpapply");
+		return 1;
+	}
+
+	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack();
+	char tokend, tokenp;
+	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list();
+	SymbolTable *st = create_st();
+	fprintf(domainc, "#include <stdio.h>\n#include \"pddl.h\"\n\n");
+	fprintf(domainh, "#ifndef PDDL_H\n#define PDDL_H\n#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
+
+	// Problem parser :objects
+	while (fscanf(problem_file, "%c", &tokenp)) {
+		// Tratamento dos dados.
+		if (tokenp == ' ') {
+			stack_to_list(problem, hp);
+			// Tratamento dos dados do  bloco "objects" até encontrar ")".
+			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
+				constants_n_objects(problem_file, st, problem, hl, tokenp);
+				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
+				break;
+			}
+			free_list(hp);
+		}
+		if (tokenp != ' ') push(problem, tokenp);
+	}
+	free_list(hp);
+
+	// Domain parser
+	obj_sentinel = 0;	
+	int act_count = 0;
+	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
+		// Inicia o tratamento dos dados do domínio.
+		if (tokend == ' ' || tokend == '(' || tokend == ')') {
+			stack_to_list(domain, hd);
+			if (strcmp_list(hd, ":constants") == 0)
+				constants_n_objects(domain_file, st, domain, hl, tokend);
+			else if (strcmp_list(hd, ":predicates") == 0)
+				predicates(domain_file, domainc, domainh, st, parenthesis_stack, tokend);
+			else if (strcmp_list(hd, ":action") == 0)
+				action(domain_file, domainc, domainh, tmpshow, tmpapply, domain, parenthesis_stack, tokend, act_count++);
+			free_list(hd);
+		}
+		else push(domain, tokend); 
+		if (tokend == '(') push(domain, tokend);
+		if (tokend == ')' && strcmp(top(domain), "(") == 0)
+			pop(domain);
+	}
+	fclose(tmpshow), fclose(tmpapply);
+	fprintf(domainh, "void check_show_actions(const char *filename);\n");
+	fprintf(domainc, "void check_show_actions(const char *filename) {\n");
+	fprintf(domainc, "\tFILE *f = fopen(filename, \"w\");\n");
+	cat("/tmp/tmpshow", domainc);
+	remove("/tmp/tmpshow");
+	fprintf(domainc, "\tfclose(f);\n}\n");
+	fprintf(domainh, "int apply_actions(char *s);\n");
+	fprintf(domainc, "int apply_actions(char *s) {\n");
+	fprintf(domainc, "\tconst char *basename = strsep(&s, \"(\");\n");
+	cat("/tmp/tmpapply", domainc);
+	remove("/tmp/tmpapply");
+	fprintf(domainc, "\treturn 2;\n}\n");
+
+	// Problem parser
+	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
+		// Tratamento dos dados.
+		if (tokenp == ' ' || tokenp == '(' || tokenp == ')') {
+			stack_to_list(problem, hp);
+			if (!is_empty_list(hp) && strcmp_list(hp, ":init") == 0)
+				init(problem_file, domainc, domainh, parenthesis_stack, tokenp);
+			else if (!is_empty_list(hp) && strcmp_list(hp, ":goal") == 0)
+				goal(problem_file, domainc, domainh, parenthesis_stack, tokenp);
+			free_list(hp);
+		}
+		else push(problem, tokenp);
+		if (tokenp == '(') push(problem, tokenp);
+		if (tokenp == ')' && strcmp(top(problem), "(") == 0)
+			pop(problem);
+	}
+	fprintf(domainh, "#endif /* PDDL_H */\n");
+
+
+	/* -----------free-n-close------------------- */
+	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(domainh);
+	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
+	free_list(hp), free_list(hd), free_list(hl);
+	free(hp), free(hd), free(hl);
+	free_st(st);
+	remove(domain_file_name), remove(problem_file_name);
+	free(domain_file_name), free(problem_file_name);
+	return 0;
+}
 
 void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 	char token, par_count = 0, types_count = 0, sig = 0, flag = 0, isnot = 1, ii = 0;
@@ -559,126 +675,4 @@ void goal(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_s
 	free_list(goal_cond), free(goal_cond);
 	fprintf(domainc, ";\n}\n");
 	return;
-}
-
-int main(int argc, char *argv[]) {
-	if (argc != 3) {
-		printf("Usage: %s <domain_file> <problem_file>\n", argv[0]);
-		return 1;
-	}
-	char *domain_file_name = argv[1], *problem_file_name = argv[2];
-	domain_file_name = preprocess_file(domain_file_name), problem_file_name = preprocess_file(problem_file_name);
-
-	FILE *domain_file = fopen(domain_file_name, "r"), 
-		 *problem_file = fopen(problem_file_name, "r"), 
-		 *domainc = fopen("pddl.c", "w"),
-		 *domainh = fopen("pddl.h", "w"),
-		 *tmpshow = fopen("/tmp/tmpshow", "w"),
-		 *tmpapply = fopen("/tmp/tmpapply", "w");
-	if (domain_file == NULL) {
-		perror("Error opening domain file");
-		return 1;
-	} if (problem_file == NULL) {
-		perror("Erro opening problem file");
-		return 1;
-	} if (domainc == NULL ) {
-		perror("Erro opening pddl.c");
-		return 1;
-	} if (domainh == NULL ) {
-		perror("Erro opening pddl.h");
-		return 1;
-	} if (tmpshow == NULL ) {
-		perror("Erro opening /tmp/tmpshow");
-		return 1;
-	} if (tmpapply == NULL ) {
-		perror("Erro opening /tmp/tmpapply");
-		return 1;
-	}
-
-	Stack *domain = create_stack(), *problem = create_stack(), *parenthesis_stack = create_stack();
-	char tokend, tokenp;
-	LinkedList *hd = create_list(), *hp = create_list(), *hl = create_list();
-	SymbolTable *st = create_st();
-	fprintf(domainc, "#include <stdio.h>\n#include \"pddl.h\"\n\n");
-	fprintf(domainh, "#ifndef PDDL_H\n#define PDDL_H\n#include <stdbool.h>\n#include <string.h>\n#define and &&\n#define or ||\n\n");
-
-	// Problem parser :objects
-	while (fscanf(problem_file, "%c", &tokenp)) {
-		// Tratamento dos dados.
-		if (tokenp == ' ') {
-			stack_to_list(problem, hp);
-			// Tratamento dos dados do  bloco "objects" até encontrar ")".
-			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
-				constants_n_objects(problem_file, st, problem, hl, tokenp);
-				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
-				break;
-			}
-			free_list(hp);
-		}
-		if (tokenp != ' ') push(problem, tokenp);
-	}
-	free_list(hp);
-
-	// Domain parser
-	obj_sentinel = 0;	
-	int act_count = 0;
-	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
-		// Inicia o tratamento dos dados do domínio.
-		if (tokend == ' ' || tokend == '(' || tokend == ')') {
-			stack_to_list(domain, hd);
-			if (strcmp_list(hd, ":constants") == 0)
-				constants_n_objects(domain_file, st, domain, hl, tokend);
-			else if (strcmp_list(hd, ":predicates") == 0)
-				predicates(domain_file, domainc, domainh, st, parenthesis_stack, tokend);
-			else if (strcmp_list(hd, ":action") == 0)
-				action(domain_file, domainc, domainh, tmpshow, tmpapply, domain, parenthesis_stack, tokend, act_count++);
-			free_list(hd);
-		}
-		else push(domain, tokend); 
-		if (tokend == '(') push(domain, tokend);
-		if (tokend == ')' && strcmp(top(domain), "(") == 0)
-			pop(domain);
-	}
-	fclose(tmpshow), fclose(tmpapply);
-	fprintf(domainh, "void check_show_actions(const char *filename);\n");
-	fprintf(domainc, "void check_show_actions(const char *filename) {\n");
-	fprintf(domainc, "\tFILE *f = fopen(filename, \"w\");\n");
-	cat("/tmp/tmpshow", domainc);
-	remove("/tmp/tmpshow");
-	fprintf(domainc, "\tfclose(f);\n}\n");
-	fprintf(domainh, "int apply_actions(char *s);\n");
-	fprintf(domainc, "int apply_actions(char *s) {\n");
-	fprintf(domainc, "\tconst char *basename = strsep(&s, \"(\");\n");
-	cat("/tmp/tmpapply", domainc);
-	remove("/tmp/tmpapply");
-	fprintf(domainc, "\treturn 2;\n}\n");
-
-	// Problem parser
-	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
-		// Tratamento dos dados.
-		if (tokenp == ' ' || tokenp == '(' || tokenp == ')') {
-			stack_to_list(problem, hp);
-			if (!is_empty_list(hp) && strcmp_list(hp, ":init") == 0)
-				init(problem_file, domainc, domainh, parenthesis_stack, tokenp);
-			else if (!is_empty_list(hp) && strcmp_list(hp, ":goal") == 0)
-				goal(problem_file, domainc, domainh, parenthesis_stack, tokenp);
-			free_list(hp);
-		}
-		else push(problem, tokenp);
-		if (tokenp == '(') push(problem, tokenp);
-		if (tokenp == ')' && strcmp(top(problem), "(") == 0)
-			pop(problem);
-	}
-	fprintf(domainh, "#endif /* PDDL_H */\n");
-
-
-	/* -----------free-n-close------------------- */
-	fclose(domain_file), fclose(problem_file), fclose(domainc), fclose(domainh);
-	free_stack(domain), free_stack(problem), free_stack(parenthesis_stack);
-	free_list(hp), free_list(hd), free_list(hl);
-	free(hp), free(hd), free(hl);
-	free_st(st);
-	remove(domain_file_name), remove(problem_file_name);
-	free(domain_file_name), free(problem_file_name);
-	return 0;
 }
