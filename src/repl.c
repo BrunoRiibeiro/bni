@@ -23,6 +23,7 @@ int main(void) {
 		free_names(), free(input);
 	}
 	free_names(), free(input), free(action_names);
+	remove("/tmp/actions");
 	return 0;
 }
 
