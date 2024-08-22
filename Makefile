@@ -58,3 +58,5 @@ rcf:
 	./parser test/domain-cafe.pddl test/problem-cafe.pddl
 rmd:
 	./parser test/domain-mercado.pddl test/problem-mercado.pddl
+rff:
+	./parser test/domain-forall.pddl test/problem-forall.pddl
