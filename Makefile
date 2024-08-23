@@ -2,7 +2,7 @@
 CC = gcc
 OPT = -O3
 CFLAGS = -Iinclude
-PDDL_FLAGS = -I$(PREFIX)
+PDDL_FLAGS = -I$(CURDIR)
 DEBUG_FLAGS = -ggdb3
 READLINE_FLAGS = -lreadline
 
@@ -29,7 +29,7 @@ $(TARGET): $(OBJ)
 # Complile REPL and pddl.c
 .PHONY: repl
 repl:
-	$(CC) $(OPT) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(PREFIX)/pddl.c -o $(PREFIX)/$@
+	$(CC) $(OPT) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(CURDIR)/pddl.c -o $(PREFIX)/$@
 
 # Clean up build files
 clean:
