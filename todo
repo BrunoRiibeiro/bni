@@ -1,11 +1,11 @@
 ;; REPL
 ------
-;; funcoes basicas implementadas
+;; REVIEW tab continuous complete
 ------
 
 ;; bni.sh
 ------
-;; add flag -o to change out_put file names
+;; REVIEW flag -o to change out_put file names
 ------
 
 ;; bloco precondition e effect 
