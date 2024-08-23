@@ -11,6 +11,8 @@ extern const char* KEYWORDS[];
 #define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
 extern char obj_sentinel;
 
+void create_forall_pre_goal(FILE *toread, FILE *towrite, int op_args, ...);
+int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count);
 void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...);
 void create_enums(FILE *fc, FILE *fh, SymbolTable *st);
 char *preprocess_file(const char *f);

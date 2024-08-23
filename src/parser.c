@@ -125,18 +125,10 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
-	char token, par_count = 0, types_count = 0, sig = 0, flag = 0, isnot = 1, ii = 0;
-	Stack *parenthesis = create_stack(), *tokens = create_stack();
-	LinkedList *word = create_list(), *types_list;
-	va_list args;
-	va_start(args, op_args);
-	if (op_args >= 1) par_count = va_arg(args, int), ii = par_count;
-	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
-	else types_list = create_list();
-	va_end(args);
-	char fixed = par_count;
-	// get forall types
+int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count) {
+	char token, sig = 0, i = par_count;
+	Stack *tokens = create_stack();
+	LinkedList *word = create_list();
 	while (fscanf(toread, "%c", &token)) { 
 		if (token == ' ' || token == '(' || token == ')') {
 			stack_to_list(tokens, word);
@@ -149,24 +141,56 @@ void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 				if (strcmp_list(word, "_") == 0) sig = 1;
 				else if (sig == 1) {
 					char *type = list_to_str(word);
-					for (; ii < par_count; ii++) {
-						for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
-						fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", ii, ii, type, ii);
+					for (; i < par_count; i++) {
+						for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
+						fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", i, i, type, i);
 					}
-					free(type), sig = 0, types_count++;
+					free(type), sig = 0;
 				}
 			}
 		} else push(tokens, token);
 		if (token == ')') {
-			for (; ii < par_count; ii++) {
-				for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
-				fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", ii, ii, ii);
+			for (; i < par_count; i++) {
+				for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
+				fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", i, i, i);
 			}
 			break;
 		}
 		free_list(word);
 	}
 	free_list(word);
+	return par_count;
+}
+
+void create_forall_pre_goal(FILE *toread, FILE *towrite, int op_args, ...) {
+	char token, par_count = 0, sig = 0, flag = 0, isnot = 1;
+	Stack *parenthesis = create_stack(), *tokens = create_stack();
+	LinkedList *word = create_list(), *types_list;
+	va_list args;
+	va_start(args, op_args);
+	if (op_args >= 1) par_count = va_arg(args, int);
+	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
+	else types_list = create_list();
+	va_end(args);
+	char fixed = par_count;
+	// get forall types
+	par_count = create_fors(toread, towrite, types_list, par_count);
+	return;
+}
+
+void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
+	char token, par_count = 0, sig = 0, flag = 0, isnot = 1;
+	Stack *parenthesis = create_stack(), *tokens = create_stack();
+	LinkedList *word = create_list(), *types_list;
+	va_list args;
+	va_start(args, op_args);
+	if (op_args >= 1) par_count = va_arg(args, int);
+	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
+	else types_list = create_list();
+	va_end(args);
+	char fixed = par_count;
+	// get forall types
+	par_count = create_fors(toread, towrite, types_list, par_count);
 	while (fscanf(toread, "%c", &token)) { 
 		if (token == ' ' || token == '(' || token == ')') {
 			stack_to_list(tokens, word);
@@ -182,13 +206,13 @@ void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 						continue;
 					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
 					char *predicate = list_to_str(word);
-					for (int i = 0; i < ii; i++) fprintf(towrite, "\t");
+					for (int i = 0; i < par_count; i++) fprintf(towrite, "\t");
 					fprintf(towrite, "\t%s", predicate);
 					free(predicate);
 				} else {
 					//add args dos predicados ?<...>
 					char *arg = list_to_str(word);
-					int index = ii - 1 - search_on(types_list, arg+1);
+					int index = par_count - 1 - search_on(types_list, arg+1);
 					if (index == -1) fprintf(towrite, "[s.%s]", arg+1);
 					else fprintf(towrite, "[i%d]", index);
 					free(arg);
@@ -205,8 +229,8 @@ void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 		}
 		free_list(word);
 	}
-	for (int i = fixed; i < ii; i++) {
-		for (int iii = 0; iii < ii; iii++) fprintf(towrite, "\t");
+	for (int i = fixed; i < par_count; i++) {
+		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
 		fprintf(towrite, "}\n");
 	}
 	free_stack(parenthesis), free_stack(tokens);
@@ -478,8 +502,10 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 			free_list(parameters_read), free_list(parameters), free_list(get_type_printf), free_list(apply_act);
 			free(parameters_read), free(parameters), free(get_type_printf), free(apply_act);
 		} else if (strcmp_list(ha, ":precondition") == 0) {
-			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n\treturn ", act_name, act_name);
+			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n", act_name, act_name);
 			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", act_name, act_name);
+			FILE *toreturn = fopen("/tmp/toreturn", "w");
+			fprintf(toreturn, "\treturn ");
 			LinkedList *precondition = create_list();
 			Stack *operators = create_stack();
 			char sigarg = 0, flag = 0, dummyflag = 0, has_to_verify = 0, has_empty = 0;
@@ -492,24 +518,27 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 							for (i = 0; i < KEYWORDS_SIZE; i++) {
 								if (strcmp_list(precondition, KEYWORDS[i]) == 0) {
 									if (flag)
-										if (i == 2) fprintf(domainc, " %s !(", KEYWORDS[top(operators)[0]]);
-										else fprintf(domainc, " %s (", KEYWORDS[top(operators)[0]]);
+										if (i == 2) fprintf(toreturn, " %s !(", KEYWORDS[top(operators)[0]]);
+										else if (i == 3) {
+											//create_forall_pre_goal(domain_file, domainc, 0);
+										}	
+										else fprintf(toreturn, " %s (", KEYWORDS[top(operators)[0]]);
 									else
-										if (i == 2) fprintf(domainc, "!(");
-										else fprintf(domainc, "(");
+										if (i == 2) fprintf(toreturn, "!(");
+										else fprintf(toreturn, "(");
 									sig = 1, flag = 0, has_empty = 1;
 									break;
 								}
 							}
 							if (!sig && !dummyflag) {
 								char *preid = list_to_str(precondition);
-								if (flag) fprintf(domainc, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
-								else fprintf(domainc, "checktrue_%s(", preid);
+								if (flag) fprintf(toreturn, " %s checktrue_%s(", KEYWORDS[top(operators)[0]], preid);
+								else fprintf(toreturn, "checktrue_%s(", preid);
 								free(preid), flag = 0, dummyflag = 1, has_to_verify = 1;
 							} else if (!sig && dummyflag) {
 								char *arg = list_to_str(precondition);
-								if (sigarg) fprintf(domainc, ", %s", arg);
-								else fprintf(domainc, "%s", arg), sigarg = 1;
+								if (sigarg) fprintf(toreturn, ", %s", arg);
+								else fprintf(toreturn, "%s", arg), sigarg = 1;
 								pop(operators);
 								free(arg);
 							}
@@ -517,8 +546,8 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 						} else {
 							//add args dos predicados ?<...>
 							char *arg = list_to_str(precondition);
-							if (sigarg) fprintf(domainc, ", s.%s", arg+1);
-							else fprintf(domainc, "s.%s", arg+1), sigarg = 1;
+							if (sigarg) fprintf(toreturn, ", s.%s", arg+1);
+							else fprintf(toreturn, "s.%s", arg+1), sigarg = 1;
 							free(arg);
 						}
 					}
@@ -529,11 +558,14 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 					pop(parenthesis_stack);
 					pop(operators);
 					if (amount(parenthesis_stack) == 1) break;
-					fprintf(domainc, ")");
+					fprintf(toreturn, ")");
 				}
 				else if (tokend != ' ') push(domain, tokend);
 				free_list(precondition);
 			}
+			fclose(toreturn);
+			cat("/tmp/toreturn", domainc);
+			//remove("/tmp/toreturn");
 			if (has_to_verify) fprintf(domainc, ");\n}\n");
 			else if (has_empty) fprintf(domainc, "true);\n}\n");
 			else fprintf(domainc, "true;\n}\n");
