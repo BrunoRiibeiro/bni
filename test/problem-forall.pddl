@@ -31,4 +31,4 @@
 		(tem-dindin d7)
 		(tem-dindin d8)
 		(tem-dindin d9)) 
-	(:goal (estou-em BrT)))
+	(:goal (and (estou-em Calcada-UED) (forall (?d - dindin) (not (tem-dindin ?d))) (not (Ligado Calcada-UED SaidaP1)))))
