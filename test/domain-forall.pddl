@@ -18,11 +18,11 @@
 		:effect (and (comprar-dindin ?d) (not (tem-dindin ?d))))
 	(:action comprar-todos-dindin
 		:parameters (?l - lugar)
-		:precondition (lugar-eh ?l DindinGourmet)
+		:precondition (and (forall (?d - dindin) (tem-dindin ?d)) (lugar-eh ?l DindinGourmet))
 		:effect (forall (?d - dindin) (and (comprar-dindin ?d) 
 			(not (tem-dindin ?d)))))
 	(:action terremoto
 		:parameters ()
-		:precondition ()
+		:precondition (forall (?l - lugar) (and (forall (?d - dindin) (and))))
 		:effect (forall (?l1 - lugar) (forall (?l2 - lugar)
 			(not (Ligado ?l1 ?l2))))))
