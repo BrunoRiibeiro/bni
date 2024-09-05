@@ -113,7 +113,11 @@ void check_show_comprardindin(FILE *f) {
 	}
 }
 bool checktrue_comprar_todos_dindin(struct comprar_todos_dindin s) {
-	return checktrue_lugar_eh(s.l, dindingourmet);
+	bool forall1 = true;
+	for (int i0 = 0; i0 < LENGTH_dindin; i0++) {
+		if (!checktrue_tem_dindin(i0)) forall1 = false;
+	}
+	return ((forall1) and checktrue_lugar_eh(s.l, dindingourmet));
 }
 void apply_comprar_todos_dindin(struct comprar_todos_dindin s) {
 	for (int i0 = 0; i0 < LENGTH_dindin; i0++) {
@@ -129,7 +133,15 @@ void check_show_comprar_todos_dindin(FILE *f) {
 	}
 }
 bool checktrue_terremoto(struct terremoto s) {
-	return true;
+	bool forall1 = true;
+	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
+		bool forall2 = true;
+		for (int i1 = 0; i1 < LENGTH_dindin; i1++) {
+			if (!(true)) forall2 = false;
+		}
+		if (!((forall2))) forall2 = false;
+	}
+	return (forall1);
 }
 void apply_terremoto(struct terremoto s) {
 	for (int i0 = 0; i0 < LENGTH_lugar; i0++) {
@@ -228,5 +240,9 @@ void initialize(void) {
 	return;
 }
 bool checktrue_goal(void) {
-	return checktrue_estou_em(brt);
+	bool forall1 = true;
+	for (int i0 = 0; i0 < LENGTH_dindin; i0++) {
+		if (!!(checktrue_tem_dindin(i0))) forall1 = false;
+	}
+	return (checktrue_estou_em(calcada_ued) and (forall1) and !(checktrue_ligado(calcada_ued, saidap1)));
 }

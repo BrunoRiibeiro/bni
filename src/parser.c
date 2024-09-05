@@ -46,13 +46,10 @@ int main(int argc, char *argv[]) {
 
 	// Problem parser :objects
 	while (fscanf(problem_file, "%c", &tokenp)) {
-		// Tratamento dos dados.
 		if (tokenp == ' ') {
 			stack_to_list(problem, hp);
-			// Tratamento dos dados do  bloco "objects" até encontrar ")".
 			if (!is_empty_list(hp) && strcmp_list(hp, ":objects") == 0) {
 				constants_n_objects(problem_file, st, problem, hl, tokenp);
-				// Pausar a leitura do problema depois de terminar o tratamento de dados do "objects".
 				break;
 			}
 			free_list(hp);
@@ -65,7 +62,6 @@ int main(int argc, char *argv[]) {
 	obj_sentinel = 0;	
 	int act_count = 0;
 	while (fscanf(domain_file, "%c", &tokend) != EOF) { 
-		// Inicia o tratamento dos dados do domínio.
 		if (tokend == ' ' || tokend == '(' || tokend == ')') {
 			stack_to_list(domain, hd);
 			if (strcmp_list(hd, ":constants") == 0)
@@ -97,7 +93,6 @@ int main(int argc, char *argv[]) {
 
 	// Problem parser
 	while (fscanf(problem_file, "%c", &tokenp) != EOF) {
-		// Tratamento dos dados.
 		if (tokenp == ' ' || tokenp == '(' || tokenp == ')') {
 			stack_to_list(problem, hp);
 			if (!is_empty_list(hp) && strcmp_list(hp, ":init") == 0)
@@ -125,240 +120,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count) {
-	char token, sig = 0, i = par_count;
-	Stack *tokens = create_stack();
-	LinkedList *word = create_list();
-	while (fscanf(toread, "%c", &token)) { 
-		if (token == ' ' || token == '(' || token == ')') {
-			stack_to_list(tokens, word);
-			if (!is_empty_list(word)) {
-				if (word->head->data[0] == '?') {
-					char *type = list_to_str(word);
-					insert(types_list, type+1);
-					par_count++, free(type);
-				}
-				if (strcmp_list(word, "_") == 0) sig = 1;
-				else if (sig == 1) {
-					char *type = list_to_str(word);
-					for (; i < par_count; i++) {
-						for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
-						fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", i, i, type, i);
-					}
-					free(type), sig = 0;
-				}
-			}
-		} else push(tokens, token);
-		if (token == ')') {
-			for (; i < par_count; i++) {
-				for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
-				fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", i, i, i);
-			}
-			break;
-		}
-		free_list(word);
-	}
-	free_list(word);
-	return par_count;
-}
-
-void write_operator(FILE *towrite, Stack *operators, int operator, int *forall_id, char flag) {
-	if (flag)
-		if (operator == 2) fprintf(towrite, " %s !(", OPERATORS[top(operators)[0]]);
-		else if (operator == 3) fprintf(towrite, " %s (forall%d", OPERATORS[top(operators)[0]], ++(*forall_id));
-		else fprintf(towrite, " %s (", OPERATORS[top(operators)[0]]);
-	else
-		if (operator == 2) fprintf(towrite, "!(");
-		else if (operator == 3) fprintf(towrite, "(forall%d", ++(*forall_id));
-		else fprintf(towrite, "(");
-}
-
-int is_operator(LinkedList *word) {
-	int i;
-	for (i = 0; i < OPERATORS_SIZE; i++)
-		if (strcmp_list(word, OPERATORS[i]) == 0) return i;
-	return -1;
-}
-
-void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_args, ...) {
-	for (int i = 0; i < forall_id; i++) fprintf(towrite,  "\t");
-	fprintf(towrite, "bool forall%d = true;\n", forall_id);
-	char token, par_count = 0, flags[5] = {0,0,0,0,0};
-	/* flags map
-	 * [0]: flag = padrao é zero toda vez que um ) torna-se igual 1
-	 * [1]: dummyflag = sao ou nao sao os argumentos de um checktrue
-	 * [2]: sigarg = flag dos argumento: é ou não é o primeiro argumento
-	 * [3]: has_empty =
-	 * [4]: has_to_verify =
-	 */
-	Stack *parenthesis = create_stack(), *tokens = create_stack(), *operators = create_stack();
-	LinkedList *word = create_list(), *types_list;
-	va_list args;
-	va_start(args, op_args);
-	if (op_args >= 1) par_count = va_arg(args, int);
-	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
-	else types_list = create_list();
-	va_end(args);
-	char fixed = par_count, filename[256];
-	par_count = create_fors(toread, towrite, types_list, par_count);
-	sprintf(filename, "/tmp/forall%d", forall_id);
-	FILE *forfile = fopen(filename, "w");
-	for (int i = 0; i < forall_id; i++) fprintf(forfile,  "\t");
-	fprintf(forfile, "\tif (!");
-	while (fscanf(toread, "%c", &token)) {
-		if (token == ' ' || token == '(' || token == ')') {
-			stack_to_list(tokens, word);
-			if (!is_empty_list(word)) {
-				if (word->head->data[0] != '?') {
-					int operator = is_operator(word);
-					if (operator != -1) {
-						write_operator(forfile, operators, operator, &forall_id, flags[0]);
-						if (operator == 3) create_forall_pre_goal(toread, towrite, forall_id, 2, par_count, types_list), flags[4] = 1;
-						flags[0] = 0, flags[3] = 1;
-					} else if (operator == -1 && !flags[1]) {
-						char *preid = list_to_str(word);
-						if (flags[0]) fprintf(forfile, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid);
-						else fprintf(forfile, "checktrue_%s(", preid);
-						free(preid), flags[0] = 0, flags[1] = 1, flags[4] = 1;
-					} else if (operator == -1 && flags[1]) {
-						char *arg = list_to_str(word);
-						if (flags[2]) fprintf(forfile, ", %s", arg);
-						else fprintf(forfile, "%s", arg), flags[2] = 1;
-						pop(operators);
-						free(arg);
-					}
-					push(operators, operator);
-				} else {
-					//add args dos predicados ?<...>
-					char *arg = list_to_str(word);
-					int index = par_count - 1 - search_on(types_list, arg+1);
-					if (index == -1)
-						if (flags[2]) fprintf(forfile, ", s.%s", arg+1);
-						else fprintf(forfile, "s.%s", arg+1), flags[2] = 1;
-					else
-						if (flags[2]) fprintf(forfile, ", i%d", index);
-						else fprintf(forfile, "i%d", index), flags[2] = 1;
-					free(arg);
-				}
-			}
-		}
-		if (token == '(') push(parenthesis, token);
-		else if (token == ')') {
-			flags[2] = 0, flags[0] = 1, flags[1] = 0;
-			pop(parenthesis);
-			pop(operators);
-			if (is_empty_stack(parenthesis)) break;
-			fprintf(forfile, ")");
-		}
-		else if (token != ' ') push(tokens, token);
-		free_list(word);
-	}
-	fclose(forfile);
-	cat(filename, towrite);
-	//remove(filename);
-	if (flags[4]) fprintf(towrite, "))");
-	else if (flags[3]) fprintf(towrite, "true))");
-	else fprintf(towrite, "true)");
-	fprintf(towrite, " forall%d = false;\n", forall_id);
-	for (int i = fixed; i < par_count; i++) {
-		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
-		fprintf(towrite, "}\n");
-	}
-	free_stack(operators), free_stack(parenthesis), free_stack(tokens);
-	free(word);
-	return;
-}
-
-void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
-	char token, par_count = 0, sig = 0, flag = 0, isnot = 1;
-	Stack *parenthesis = create_stack(), *tokens = create_stack();
-	LinkedList *word = create_list(), *types_list;
-	va_list args;
-	va_start(args, op_args);
-	if (op_args >= 1) par_count = va_arg(args, int);
-	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
-	else types_list = create_list();
-	va_end(args);
-	char fixed = par_count;
-	par_count = create_fors(toread, towrite, types_list, par_count);
-	while (fscanf(toread, "%c", &token)) { 
-		if (token == ' ' || token == '(' || token == ')') {
-			stack_to_list(tokens, word);
-			if (!is_empty_list(word)) {
-				flag = 0;
-				if (word->head->data[0] != '?') {
-					if (strcmp_list(word, "not") == 0) {
-						isnot = 0, free_list(word);
-						continue;
-					} else if (strcmp_list(word, "forall") == 0) { 
-						create_forall_effect(toread, towrite, 2, par_count, types_list); 
-						flag = 1, free_list(word);
-						continue;
-					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
-					char *predicate = list_to_str(word);
-					for (int i = 0; i < par_count; i++) fprintf(towrite, "\t");
-					fprintf(towrite, "\t%s", predicate);
-					free(predicate);
-				} else {
-					//add args dos predicados ?<...>
-					char *arg = list_to_str(word);
-					int index = par_count - 1 - search_on(types_list, arg+1);
-					if (index == -1) fprintf(towrite, "[s.%s]", arg+1);
-					else fprintf(towrite, "[i%d]", index);
-					free(arg);
-				}
-			}
-		} else push(tokens, token);
-		if (token == '(') push(parenthesis, token);
-		else if (token == ')') {
-			pop(parenthesis);
-			if (is_empty_stack(parenthesis)) break;
-			if (flag == 0)
-				fprintf(towrite, " = %d;\n", isnot), isnot = 1;
-			flag = 1;
-		}
-		free_list(word);
-	}
-	for (int i = fixed; i < par_count; i++) {
-		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
-		fprintf(towrite, "}\n");
-	}
-	free_stack(parenthesis), free_stack(tokens);
-	free(word);
-}
-
-void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
-	Node_st *aux = st->head;
-	while (aux) {
-		fprintf(fh, "enum %s {\n", aux->data.id);
-		fprintf(fc, "%sMap %s_map[LENGTH_%s] = {\n", aux->data.id, aux->data.id, aux->data.id);
-		Node *obj_list = aux->data.list->head;
-		while (obj_list) {
-			fprintf(fh, "\t%s,\n", obj_list->data);
-			fprintf(fc, "\t{\"%s\", %s},\n", obj_list->data, obj_list->data);
-			obj_list = obj_list->next;
-		}
-		fprintf(fh, "\tLENGTH_%s\n", aux->data.id);
-		fprintf(fh, "};\n");
-		fprintf(fh, "typedef struct %sMap {\n"
-				"	const char *str;\n"
-				"	enum %s value;\n}%sMap;\n", aux->data.id, aux->data.id, aux->data.id);
-		fprintf(fc, "};\n");
-		fprintf(fh, "const char *get_%s_names(enum %s e);\n", aux->data.id, aux->data.id);
-		fprintf(fc, "const char *get_%s_names(enum %s e) {\n"
-				"	if (e >= 0 && e < LENGTH_%s)\n"
-				"		return %s_map[e].str;\n"
-				"	return NULL;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
-		fprintf(fc, "enum %s get_%s_enum(const char *s) {\n"
-				"	for (int i = 0; %s_map[i].str != NULL; i++)\n"
-				"		if (strcmp(s, %s_map[i].str) == 0)\n"
-				"			return %s_map[i].value;\n"
-				"	return LENGTH_%s;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id);
-		aux = aux->next;
-	}
-}
-
-char *preprocess_file(const char *f) {
+char* preprocess_file(const char *f) {
 	size_t linecap = 0;
 	char token, *line = NULL, *filename = malloc(strlen(f) + 10);
 	const char *basename = strrchr(f, '/');
@@ -380,15 +142,6 @@ char *preprocess_file(const char *f) {
 		else fprintf(file, "%c", tolower(token));
 	fclose(basefile), fclose(file), free(line);
 	return filename;
-}
-
-void cat(const char *fname, FILE *f2) {
-	FILE *f1 = fopen(fname, "r");
-	char c;
-	while (fscanf(f1, "%c", &c) != EOF)
-		fprintf(f2, "%c", c);
-	fclose(f1);
-	return;
 }
 
 void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, char token) {
@@ -504,201 +257,19 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 	fprintf(tmpshow, "\tcheck_show_%s(f);\n", act_name);
 	fprintf(tmpfile_check_show, "void check_show_%s(FILE *f) {\n\tstruct %s s;\n", act_name, act_name);
 	fprintf(domainh, "struct %s {\n", act_name);
-	fprintf(tmpapply, "\tif (strcmp(basename, \"%s\") == 0) {\n", act_name);
-	fprintf(tmpapply, "\t\tstruct %s tcurts;\n", act_name);
-	fprintf(tmpapply, "\t\tchar *token;\n");
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		if (tokend == ' ' || tokend == '(')
 			stack_to_list(domain, ha);
 		if (strcmp_list(ha, ":parameters") == 0) {
-			LinkedList *parameters_read = create_list();
-			LinkedList *parameters = create_list();
-			LinkedList *get_type_printf = create_list();
-			LinkedList *apply_act = create_list();
-			unsigned short int par_count = 0;
-			while (fscanf(domain_file, "%c", &tokend)) {
-				if ((tokend == ' ' || tokend == '(' || tokend == ')')) {
-					stack_to_list(domain, parameters_read);
-					if (!is_empty_list(parameters_read)) {
-						if (parameters_read->head->data[0] == '_') {
-							char type[100];
-							fscanf(domain_file, "%[^)|^ ]s", type);
-							while (!is_empty_list(parameters)) {
-								fprintf(domainh, "\tenum %s %s;\n", type, parameters->head->data);
-								for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
-								fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", par_count, par_count, type, par_count);
-								for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
-								fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-								size_t toalloc = strlen(parameters->head->data) + strlen(type) + 80;
-								char *gtp = malloc(strlen(type) + 20), *stringao = malloc(toalloc);
-								snprintf(gtp, (strlen(type)+20), ", get_%s_names(i%hd)", type, par_count);
-								snprintf(stringao, toalloc, "\t\ttoken = strsep(&s, \",\");\n\t\ttcurts.%s = get_%s_enum(strsep(&token, \")\"));\n", parameters->head->data, type);
-								insert(get_type_printf, gtp);
-								insert(apply_act, stringao);
-								par_count++, remove_first(parameters), free(gtp), free(stringao);
-							}
-						}
-						else {
-							char *par = list_to_str(parameters_read);
-							insert(parameters, par);
-							free(par);
-						}
-					}
-					free_list(parameters_read);
-					if (tokend == ')') {
-						while (!is_empty_list(parameters)) {
-							fprintf(domainh, "\tenum obj %s;\n", parameters->head->data);
-							for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
-							fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", par_count, par_count, par_count);
-							for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
-							fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-							fprintf(tmpapply, "\t\ttoken = strsep(&s, \",\");\n");
-							fprintf(tmpapply, "\t\ttcurts.%s = get_obj_enum(strsep(&token, \")\"));\n", parameters->head->data);
-							size_t toalloc = strlen(parameters->head->data) + 85;
-							char gtp[25], *stringao = malloc(toalloc);
-							snprintf(gtp, 25, ", get_obj_names(i%hd)", par_count);
-							snprintf(stringao, toalloc, "\t\ttoken = strsep(&s, \",\");\n\t\ttcurts.%s = get_obj_enum(strsep(&token, \")\"));\n", parameters->head->data);
-							insert(get_type_printf, gtp);
-							insert(apply_act, stringao), free(stringao);
-							par_count++, remove_first(parameters);
-							par_count++, remove_first(parameters);
-						}
-						break;
-					}
-				}
-				else if (tokend != ' ' && tokend != '?') push(domain, tokend);
-			}
-			fprintf(domainh, "};\n");
-			for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
-			while (!is_empty_list(apply_act))
-				fprintf(tmpapply, "%s", apply_act->head->data), remove_first(apply_act);
-			fprintf(tmpfile_check_show, "\tif (checktrue_%s(s)) fprintf(f, \"%s(", act_name, act_name);
-			fprintf(tmpapply, "\t\tif (checktrue_%s(tcurts)) {\n", act_name);
-			fprintf(tmpapply, "\t\t\tapply_%s(tcurts);\n", act_name);
-			fprintf(tmpapply, "\t\t\treturn 0;\n\t\t} else return 1;\n\t}\n");
-			for (int i = 0; i < par_count; i++)
-				if (i == 0) fprintf(tmpfile_check_show, "%%s");
-				else fprintf(tmpfile_check_show, ",%%s");
-			fprintf(tmpfile_check_show, ")\\n\"");
-			while (!is_empty_list(get_type_printf))
-				fprintf(tmpfile_check_show, "%s", get_type_printf->head->data), remove_first(get_type_printf);
-			fprintf(tmpfile_check_show, ");\n");
-			for (int i = 0; i < par_count; i++) {
-				for (int ii = par_count; ii > i; ii--) fprintf(tmpfile_check_show, "\t");
-				fprintf(tmpfile_check_show, "}\n");
-			}
-			fprintf(tmpfile_check_show, "}\n");
-			fclose(tmpfile_check_show);
-			free_list(parameters_read), free_list(parameters), free_list(get_type_printf), free_list(apply_act);
-			free(parameters_read), free(parameters), free(get_type_printf), free(apply_act);
+			parameters(domain_file, domainh, tmpapply, tmpfile_check_show, domain, act_name);
 		} else if (strcmp_list(ha, ":precondition") == 0) {
 			fprintf(domainc, "bool checktrue_%s(struct %s s) {\n", act_name, act_name);
 			fprintf(domainh, "bool checktrue_%s(struct %s s);\n", act_name, act_name);
-			FILE *toreturn = fopen("/tmp/toreturn", "w");
-			fprintf(toreturn, "\treturn ");
-			LinkedList *precondition = create_list();
-			Stack *operators = create_stack();
-			int forall_id = 0;
-			char flags[5] = {0,0,0,0,0};
-			/* flags map
-			 * [0]: flag = padrao é zero toda vez que um ) torna-se igual 1
-			 * [1]: dummyflag = sao ou nao sao os argumentos de um checktrue
-			 * [2]: sigarg = flag dos argumento: é ou não é o primeiro argumento
-			 * [3]: has_empty =
-			 * [4]: has_to_verify =
-			 */
-			while (fscanf(domain_file, "%c", &tokend)) {
-				if ((tokend == ' ' || tokend == '(' || tokend == ')') && (amount(domain) != 2)) {
-					stack_to_list(domain, precondition);
-					if (!is_empty_list(precondition)) {
-						if (precondition->head->data[0] != '?') {
-							int operator = is_operator(precondition);
-							if (operator != -1) {
-								write_operator(toreturn, operators, operator, &forall_id, flags[0]);
-								if (operator == 3) create_forall_pre_goal(domain_file, domainc, forall_id++, 0), flags[4] = 1;
-								flags[0] = 0, flags[3] = 1;
-							} else if (operator == -1 && !flags[1]) {
-								char *preid = list_to_str(precondition);
-								if (flags[0]) fprintf(toreturn, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid);
-								else fprintf(toreturn, "checktrue_%s(", preid);
-								free(preid), flags[0] = 0, flags[1] = 1, flags[4] = 1;
-							} else if (operator == -1 && flags[1]) {
-								char *arg = list_to_str(precondition);
-								if (flags[2]) fprintf(toreturn, ", %s", arg);
-								else fprintf(toreturn, "%s", arg), flags[2] = 1;
-								pop(operators);
-								free(arg);
-							}
-							push(operators, operator);
-						} else {
-							//add args dos predicados ?<...>
-							char *arg = list_to_str(precondition);
-							if (flags[2]) fprintf(toreturn, ", s.%s", arg+1);
-							else fprintf(toreturn, "s.%s", arg+1), flags[2] = 1;
-							free(arg);
-						}
-					}
-				}
-				if (tokend == '(') push(parenthesis_stack, tokend);
-				else if (tokend == ')') {
-					flags[2] = 0, flags[0] = 1, flags[1] = 0;
-					pop(parenthesis_stack);
-					pop(operators);
-					if (amount(parenthesis_stack) == 1) break;
-					fprintf(toreturn, ")");
-				}
-				else if (tokend != ' ') push(domain, tokend);
-				free_list(precondition);
-			}
-			fclose(toreturn);
-			cat("/tmp/toreturn", domainc);
-			remove("/tmp/toreturn");
-			if (flags[4]) fprintf(domainc, ");\n}\n");
-			else if (flags[3]) fprintf(domainc, "true);\n}\n");
-			else fprintf(domainc, "true;\n}\n");
-			free(precondition), free_stack(operators);
+			precondition(domain_file, domainc, domain, parenthesis_stack, act_name);
 		} else if (strcmp_list(ha, ":effect") == 0) {
 			fprintf(domainc, "void apply_%s(struct %s s) {\n", act_name, act_name);
 			fprintf(domainh, "void apply_%s(struct %s s);\n", act_name, act_name);
-			LinkedList *effect = create_list();
-			char isnot = 1, flag = 0;
-			while (fscanf(domain_file, "%c", &tokend)) {
-				if ((tokend == ' ' || tokend == '(' || tokend == ')') && (amount(domain) != 2)) {
-					stack_to_list(domain, effect);
-					if (!is_empty_list(effect)) {
-						flag = 0;
-						if (effect->head->data[0] != '?') {
-							if (strcmp_list(effect, "not") == 0) {
-								isnot = 0, free_list(effect);
-								continue;
-							} else if (strcmp_list(effect, "forall") == 0) {
-								create_forall_effect(domain_file, domainc, 0);
-								flag = 1, free_list(effect); 
-								continue;
-							} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
-							char *predicate = list_to_str(effect);
-							fprintf(domainc, "\t%s", predicate);
-							free(predicate);
-						} else {
-							//add args dos predicados ?<...>
-							char *arg = list_to_str(effect);
-							fprintf(domainc, "[s.%s]", arg+1);
-							free(arg);
-						}
-					}
-				}
-				if (tokend == '(') push(parenthesis_stack, tokend);
-				else if (tokend == ')') {
-					pop(parenthesis_stack);
-					if (amount(parenthesis_stack) == 1) break;
-					if (flag == 0)
-						fprintf(domainc, " = %d;\n", isnot), isnot = 1;
-					flag = 1;
-				} else if (tokend != ' ') push(domain, tokend);
-				free_list(effect);
-			}
-			fprintf(domainc, "}\n");
-			free(effect);
+			effect(domain_file, domainc, domain, parenthesis_stack, act_name);
 		} else if (tokend == '(') push(parenthesis_stack, tokend);
 		else if (tokend == ')') {
 			pop(parenthesis_stack);
@@ -711,6 +282,197 @@ void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE
 	remove("/tmp/tmpfile_check_show");
 	free_list(ha), free(ha);
 	return;
+}
+
+void parameters(FILE *domain_file, FILE *domainh, FILE *tmpapply, FILE *tmpfile_check_show, Stack *domain, char *act_name) {
+	LinkedList *parameters_read = create_list(), *parameters = create_list(),
+			   *get_type_printf = create_list(), *apply_act = create_list();
+	int par_count = 0;
+	char token;
+	fprintf(tmpapply, "\tif (strcmp(basename, \"%s\") == 0) {\n", act_name);
+	fprintf(tmpapply, "\t\tstruct %s tcurts;\n", act_name);
+	fprintf(tmpapply, "\t\tchar *token;\n");
+	while (fscanf(domain_file, "%c", &token)) {
+		if ((token == ' ' || token == '(' || token == ')')) {
+			stack_to_list(domain, parameters_read);
+			if (!is_empty_list(parameters_read)) {
+				if (parameters_read->head->data[0] == '_') {
+					char type[100];
+					fscanf(domain_file, "%[^)|^ ]s", type);
+					while (!is_empty_list(parameters)) {
+						fprintf(domainh, "\tenum %s %s;\n", type, parameters->head->data);
+						for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
+						fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", par_count, par_count, type, par_count);
+						for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
+						fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
+						size_t toalloc = strlen(parameters->head->data) + strlen(type) + 80;
+						char *gtp = malloc(strlen(type) + 20), *stringao = malloc(toalloc);
+						snprintf(gtp, (strlen(type)+20), ", get_%s_names(i%d)", type, par_count);
+						snprintf(stringao, toalloc, "\t\ttoken = strsep(&s, \",\");\n\t\ttcurts.%s = get_%s_enum(strsep(&token, \")\"));\n", parameters->head->data, type);
+						insert(get_type_printf, gtp);
+						insert(apply_act, stringao);
+						par_count++, remove_first(parameters), free(gtp), free(stringao);
+					}
+				}
+				else {
+					char *par = list_to_str(parameters_read);
+					insert(parameters, par);
+					free(par);
+				}
+			}
+			free_list(parameters_read);
+			if (token == ')') {
+				while (!is_empty_list(parameters)) {
+					fprintf(domainh, "\tenum obj %s;\n", parameters->head->data);
+					for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
+					fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", par_count, par_count, par_count);
+					for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
+					fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
+					fprintf(tmpapply, "\t\ttoken = strsep(&s, \",\");\n");
+					fprintf(tmpapply, "\t\ttcurts.%s = get_obj_enum(strsep(&token, \")\"));\n", parameters->head->data);
+					size_t toalloc = strlen(parameters->head->data) + 85;
+					char gtp[25], *stringao = malloc(toalloc);
+					snprintf(gtp, 25, ", get_obj_names(i%hd)", par_count);
+					snprintf(stringao, toalloc, "\t\ttoken = strsep(&s, \",\");\n\t\ttcurts.%s = get_obj_enum(strsep(&token, \")\"));\n", parameters->head->data);
+					insert(get_type_printf, gtp);
+					insert(apply_act, stringao), free(stringao);
+					par_count++, remove_first(parameters);
+				}
+				break;
+			}
+		}
+		else if (token != ' ' && token != '?') push(domain, token);
+	}
+	fprintf(domainh, "};\n");
+	for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
+	while (!is_empty_list(apply_act))
+		fprintf(tmpapply, "%s", apply_act->head->data), remove_first(apply_act);
+	fprintf(tmpfile_check_show, "\tif (checktrue_%s(s)) fprintf(f, \"%s(", act_name, act_name);
+	fprintf(tmpapply, "\t\tif (checktrue_%s(tcurts)) {\n", act_name);
+	fprintf(tmpapply, "\t\t\tapply_%s(tcurts);\n", act_name);
+	fprintf(tmpapply, "\t\t\treturn 0;\n\t\t} else return 1;\n\t}\n");
+	for (int i = 0; i < par_count; i++)
+		if (i == 0) fprintf(tmpfile_check_show, "%%s");
+		else fprintf(tmpfile_check_show, ",%%s");
+	fprintf(tmpfile_check_show, ")\\n\"");
+	while (!is_empty_list(get_type_printf))
+		fprintf(tmpfile_check_show, "%s", get_type_printf->head->data), remove_first(get_type_printf);
+	fprintf(tmpfile_check_show, ");\n");
+	for (int i = 0; i < par_count; i++) {
+		for (int ii = par_count; ii > i; ii--) fprintf(tmpfile_check_show, "\t");
+		fprintf(tmpfile_check_show, "}\n");
+	}
+	fprintf(tmpfile_check_show, "}\n");
+	fclose(tmpfile_check_show);
+	free_list(parameters_read), free_list(parameters), free_list(get_type_printf), free_list(apply_act);
+	free(parameters_read), free(parameters), free(get_type_printf), free(apply_act);
+}
+
+void precondition(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char *act_name) {
+	FILE *toreturn = fopen("/tmp/toreturn", "w");
+	fprintf(toreturn, "\treturn ");
+	LinkedList *precondition = create_list();
+	Stack *operators = create_stack();
+	int forall_id = 0;
+	char token, flags[5] = {0,0,0,0,0};
+	/* flags map
+	 * [0]: flag = padrao é zero toda vez que um ) torna-se igual 1
+	 * [1]: dummyflag = sao ou nao sao os argumentos de um checktrue
+	 * [2]: sigarg = flag dos argumento: é ou não é o primeiro argumento
+	 * [3]: has_empty =
+	 * [4]: has_to_verify =
+	 */
+	while (fscanf(domain_file, "%c", &token)) {
+		if ((token == ' ' || token == '(' || token == ')') && (amount(domain) != 2)) {
+			stack_to_list(domain, precondition);
+			if (!is_empty_list(precondition)) {
+				if (precondition->head->data[0] != '?') {
+					int operator = is_operator(precondition);
+					if (operator != -1) {
+						write_operator(toreturn, operators, operator, &forall_id, flags[0]);
+						if (operator == 3) create_forall_pre_goal(domain_file, domainc, forall_id++, 0), flags[4] = 1;
+						flags[0] = 0, flags[3] = 1;
+					} else if (operator == -1 && !flags[1]) {
+						char *preid = list_to_str(precondition);
+						if (flags[0]) fprintf(toreturn, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid);
+						else fprintf(toreturn, "checktrue_%s(", preid);
+						free(preid), flags[0] = 0, flags[1] = 1, flags[4] = 1;
+					} else if (operator == -1 && flags[1]) {
+						char *arg = list_to_str(precondition);
+						if (flags[2]) fprintf(toreturn, ", %s", arg);
+						else fprintf(toreturn, "%s", arg), flags[2] = 1;
+						pop(operators);
+						free(arg);
+					}
+					push(operators, operator);
+				} else {
+					//add args dos predicados ?<...>
+					char *arg = list_to_str(precondition);
+					if (flags[2]) fprintf(toreturn, ", s.%s", arg+1);
+					else fprintf(toreturn, "s.%s", arg+1), flags[2] = 1;
+					free(arg);
+				}
+			}
+		}
+		if (token == '(') push(parenthesis_stack, token);
+		else if (token == ')') {
+			flags[2] = 0, flags[0] = 1, flags[1] = 0;
+			pop(parenthesis_stack);
+			pop(operators);
+			if (amount(parenthesis_stack) == 1) break;
+			fprintf(toreturn, ")");
+		}
+		else if (token != ' ') push(domain, token);
+		free_list(precondition);
+	}
+	fclose(toreturn);
+	cat("/tmp/toreturn", domainc);
+	remove("/tmp/toreturn");
+	if (flags[4]) fprintf(domainc, ");\n}\n");
+	else if (flags[3]) fprintf(domainc, "true);\n}\n");
+	else fprintf(domainc, "true;\n}\n");
+	free(precondition), free_stack(operators);
+}
+
+void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char *act_name) {
+	LinkedList *effect = create_list();
+	char token, isnot = 1, flag = 0;
+	while (fscanf(domain_file, "%c", &token)) {
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(domain, effect);
+			if (!is_empty_list(effect)) {
+				flag = 0;
+				if (effect->head->data[0] != '?') {
+					if (strcmp_list(effect, "not") == 0) {
+						isnot = 0, free_list(effect);
+						continue;
+					} else if (strcmp_list(effect, "forall") == 0) {
+						create_forall_effect(domain_file, domainc, 0);
+						flag = 1, free_list(effect); 
+						continue;
+					} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
+					char *predicate = list_to_str(effect);
+					fprintf(domainc, "\t%s", predicate);
+					free(predicate);
+				} else {
+					//add args dos predicados ?<...>
+					char *arg = list_to_str(effect);
+					fprintf(domainc, "[s.%s]", arg+1);
+					free(arg);
+				}
+			}
+		}
+		if (token == '(') push(parenthesis_stack, token);
+		else if (token == ')') {
+			pop(parenthesis_stack);
+			if (amount(parenthesis_stack) == 1) break;
+			if (flag == 0) fprintf(domainc, " = %d;\n", isnot), isnot = 1;
+			flag = 1;
+		} else if (token != ' ') push(domain, token);
+		free_list(effect);
+	}
+	fprintf(domainc, "}\n");
+	free(effect);
 }
 
 void init(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_stack, char tokenp) {
@@ -795,5 +557,248 @@ void goal(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_s
 	free_stack(operators), free_stack(clauses);
 	free_list(goal_cond), free(goal_cond);
 	fprintf(domainc, ";\n}\n");
+	return;
+}
+
+void create_enums(FILE *fc, FILE *fh, SymbolTable *st) {
+	Node_st *aux = st->head;
+	while (aux) {
+		fprintf(fh, "enum %s {\n", aux->data.id);
+		fprintf(fc, "%sMap %s_map[LENGTH_%s] = {\n", aux->data.id, aux->data.id, aux->data.id);
+		Node *obj_list = aux->data.list->head;
+		while (obj_list) {
+			fprintf(fh, "\t%s,\n", obj_list->data);
+			fprintf(fc, "\t{\"%s\", %s},\n", obj_list->data, obj_list->data);
+			obj_list = obj_list->next;
+		}
+		fprintf(fh, "\tLENGTH_%s\n", aux->data.id);
+		fprintf(fh, "};\n");
+		fprintf(fh, "typedef struct %sMap {\n"
+				"	const char *str;\n"
+				"	enum %s value;\n}%sMap;\n", aux->data.id, aux->data.id, aux->data.id);
+		fprintf(fc, "};\n");
+		fprintf(fh, "const char *get_%s_names(enum %s e);\n", aux->data.id, aux->data.id);
+		fprintf(fc, "const char *get_%s_names(enum %s e) {\n"
+				"	if (e >= 0 && e < LENGTH_%s)\n"
+				"		return %s_map[e].str;\n"
+				"	return NULL;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id);
+		fprintf(fc, "enum %s get_%s_enum(const char *s) {\n"
+				"	for (int i = 0; %s_map[i].str != NULL; i++)\n"
+				"		if (strcmp(s, %s_map[i].str) == 0)\n"
+				"			return %s_map[i].value;\n"
+				"	return LENGTH_%s;\n}\n", aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id, aux->data.id);
+		aux = aux->next;
+	}
+}
+
+int is_operator(LinkedList *word) {
+	int i;
+	for (i = 0; i < OPERATORS_SIZE; i++)
+		if (strcmp_list(word, OPERATORS[i]) == 0) return i;
+	return -1;
+}
+
+void write_operator(FILE *towrite, Stack *operators, int operator, int *forall_id, char flag) {
+	if (flag)
+		if (operator == 2) fprintf(towrite, " %s !(", OPERATORS[top(operators)[0]]);
+		else if (operator == 3) fprintf(towrite, " %s (forall%d", OPERATORS[top(operators)[0]], ++(*forall_id));
+		else fprintf(towrite, " %s (", OPERATORS[top(operators)[0]]);
+	else
+		if (operator == 2) fprintf(towrite, "!(");
+		else if (operator == 3) fprintf(towrite, "(forall%d", ++(*forall_id));
+		else fprintf(towrite, "(");
+}
+
+int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count) {
+	char token, sig = 0, i = par_count;
+	Stack *tokens = create_stack();
+	LinkedList *word = create_list();
+	while (fscanf(toread, "%c", &token)) { 
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(tokens, word);
+			if (!is_empty_list(word)) {
+				if (word->head->data[0] == '?') {
+					char *type = list_to_str(word);
+					insert(types_list, type+1);
+					par_count++, free(type);
+				}
+				if (strcmp_list(word, "_") == 0) sig = 1;
+				else if (sig == 1) {
+					char *type = list_to_str(word);
+					for (; i < par_count; i++) {
+						for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
+						fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_%s; i%d++) {\n", i, i, type, i);
+					}
+					free(type), sig = 0;
+				}
+			}
+		} else push(tokens, token);
+		if (token == ')') {
+			for (; i < par_count; i++) {
+				for (int ii = 0; ii < i; ii++) fprintf(towrite, "\t");
+				fprintf(towrite, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", i, i, i);
+			}
+			break;
+		}
+		free_list(word);
+	}
+	free_list(word);
+	return par_count;
+}
+
+
+void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_args, ...) {
+	for (int i = 0; i < forall_id; i++) fprintf(towrite,  "\t");
+	fprintf(towrite, "bool forall%d = true;\n", forall_id);
+	char token, par_count = 0, flags[5] = {0,0,0,0,0};
+	/* flags map
+	 * [0]: flag = padrao é zero toda vez que um ) torna-se igual 1
+	 * [1]: dummyflag = sao ou nao sao os argumentos de um checktrue
+	 * [2]: sigarg = flag dos argumento: é ou não é o primeiro argumento
+	 * [3]: has_empty =
+	 * [4]: has_to_verify =
+	 */
+	Stack *parenthesis = create_stack(), *tokens = create_stack(), *operators = create_stack();
+	LinkedList *word = create_list(), *types_list;
+	va_list args;
+	va_start(args, op_args);
+	if (op_args >= 1) par_count = va_arg(args, int);
+	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
+	else types_list = create_list();
+	va_end(args);
+	char fixed = par_count, filename[256];
+	par_count = create_fors(toread, towrite, types_list, par_count);
+	sprintf(filename, "/tmp/forall%d", forall_id);
+	FILE *forfile = fopen(filename, "w");
+	for (int i = 0; i < forall_id; i++) fprintf(forfile,  "\t");
+	fprintf(forfile, "\tif (!");
+	while (fscanf(toread, "%c", &token)) {
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(tokens, word);
+			if (!is_empty_list(word)) {
+				if (word->head->data[0] != '?') {
+					int operator = is_operator(word);
+					if (operator != -1) {
+						write_operator(forfile, operators, operator, &forall_id, flags[0]);
+						if (operator == 3) create_forall_pre_goal(toread, towrite, forall_id, 2, par_count, types_list), flags[4] = 1;
+						flags[0] = 0, flags[3] = 1;
+					} else if (operator == -1 && !flags[1]) {
+						char *preid = list_to_str(word);
+						if (flags[0]) fprintf(forfile, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid);
+						else fprintf(forfile, "checktrue_%s(", preid);
+						free(preid), flags[0] = 0, flags[1] = 1, flags[4] = 1;
+					} else if (operator == -1 && flags[1]) {
+						char *arg = list_to_str(word);
+						if (flags[2]) fprintf(forfile, ", %s", arg);
+						else fprintf(forfile, "%s", arg), flags[2] = 1;
+						pop(operators);
+						free(arg);
+					}
+					push(operators, operator);
+				} else {
+					//add args dos predicados ?<...>
+					char *arg = list_to_str(word);
+					int index = par_count - 1 - search_on(types_list, arg+1);
+					if (index == -1)
+						if (flags[2]) fprintf(forfile, ", s.%s", arg+1);
+						else fprintf(forfile, "s.%s", arg+1), flags[2] = 1;
+					else
+						if (flags[2]) fprintf(forfile, ", i%d", index);
+						else fprintf(forfile, "i%d", index), flags[2] = 1;
+					free(arg);
+				}
+			}
+		}
+		if (token == '(') push(parenthesis, token);
+		else if (token == ')') {
+			flags[2] = 0, flags[0] = 1, flags[1] = 0;
+			pop(parenthesis);
+			pop(operators);
+			if (is_empty_stack(parenthesis)) break;
+			fprintf(forfile, ")");
+		}
+		else if (token != ' ') push(tokens, token);
+		free_list(word);
+	}
+	fclose(forfile);
+	cat(filename, towrite);
+	remove(filename);
+	if (flags[4]) fprintf(towrite, "))");
+	else if (flags[3]) fprintf(towrite, "true))");
+	else fprintf(towrite, "true)");
+	fprintf(towrite, " forall%d = false;\n", forall_id);
+	for (int i = fixed; i < par_count; i++) {
+		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
+		fprintf(towrite, "}\n");
+	}
+	free_stack(operators), free_stack(parenthesis), free_stack(tokens);
+	free(word);
+	return;
+}
+
+void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
+	char token, par_count = 0, sig = 0, flag = 0, isnot = 1;
+	Stack *parenthesis = create_stack(), *tokens = create_stack();
+	LinkedList *word = create_list(), *types_list;
+	va_list args;
+	va_start(args, op_args);
+	if (op_args >= 1) par_count = va_arg(args, int);
+	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
+	else types_list = create_list();
+	va_end(args);
+	char fixed = par_count;
+	par_count = create_fors(toread, towrite, types_list, par_count);
+	while (fscanf(toread, "%c", &token)) { 
+		if (token == ' ' || token == '(' || token == ')') {
+			stack_to_list(tokens, word);
+			if (!is_empty_list(word)) {
+				flag = 0;
+				if (word->head->data[0] != '?') {
+					if (strcmp_list(word, "not") == 0) {
+						isnot = 0, free_list(word);
+						continue;
+					} else if (strcmp_list(word, "forall") == 0) { 
+						create_forall_effect(toread, towrite, 2, par_count, types_list); 
+						flag = 1, free_list(word);
+						continue;
+					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
+					char *predicate = list_to_str(word);
+					for (int i = 0; i < par_count; i++) fprintf(towrite, "\t");
+					fprintf(towrite, "\t%s", predicate);
+					free(predicate);
+				} else {
+					//add args dos predicados ?<...>
+					char *arg = list_to_str(word);
+					int index = par_count - 1 - search_on(types_list, arg+1);
+					if (index == -1) fprintf(towrite, "[s.%s]", arg+1);
+					else fprintf(towrite, "[i%d]", index);
+					free(arg);
+				}
+			}
+		} else push(tokens, token);
+		if (token == '(') push(parenthesis, token);
+		else if (token == ')') {
+			pop(parenthesis);
+			if (is_empty_stack(parenthesis)) break;
+			if (flag == 0)
+				fprintf(towrite, " = %d;\n", isnot), isnot = 1;
+			flag = 1;
+		}
+		free_list(word);
+	}
+	for (int i = fixed; i < par_count; i++) {
+		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
+		fprintf(towrite, "}\n");
+	}
+	free_stack(parenthesis), free_stack(tokens);
+	free(word);
+}
+
+void cat(const char *fname, FILE *f2) {
+	FILE *f1 = fopen(fname, "r");
+	char c;
+	while (fscanf(f1, "%c", &c) != EOF)
+		fprintf(f2, "%c", c);
+	fclose(f1);
 	return;
 }
