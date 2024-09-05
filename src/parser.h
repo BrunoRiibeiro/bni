@@ -7,10 +7,12 @@
 #include "linked_list.h"
 #include "stack.h"
 
-extern const char* KEYWORDS[];
-#define KEYWORDS_SIZE (sizeof(KEYWORDS) / sizeof(KEYWORDS[0]))
+extern const char *OPERATORS[];
+#define OPERATORS_SIZE (sizeof(OPERATORS) / sizeof(OPERATORS[0]))
 extern char obj_sentinel;
 
+void write_operator(FILE *towrite, Stack *operators, int operator, int *forall_id, char flag);
+int is_operator(LinkedList *word);
 void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_args, ...);
 int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count);
 void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...);
