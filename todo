@@ -10,8 +10,8 @@
 
 ;; bloco precondition e effect 
 ------
-* add forall e when
-* criar as macros FORALL, WHEN
+* add when
+* criar as macros WHEN
 * operadores matematicos {=,+,-,>,<,...}
 ------
 
