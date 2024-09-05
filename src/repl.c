@@ -1,9 +1,11 @@
 #include "repl.h"
 
-int SIZENAMES = 2;
+int SIZENAMES = 30;
 char **action_names = NULL;
 
-int main(void) {
+int
+main(void)
+{
 	rl_attempted_completion_function = action_name_completion;
 	printheader();
 	initialize();
@@ -22,17 +24,22 @@ int main(void) {
 		apply_actions(input);
 		free_names(), free(input);
 	}
-	free_names(), free(input), free(action_names);
+	free_names(), free(action_names);
+	// free(input), 
 	remove("/tmp/actions");
 	return 0;
 }
 
-char **action_name_completion(const char *text, int start, int end) {
+char **
+action_name_completion(const char *text, int start, int end)
+{
 	rl_attempted_completion_over = 1;
 	return rl_completion_matches(text, action_name_generator);
 }
 
-char *action_name_generator(const char *text, int state) {
+char *
+action_name_generator(const char *text, int state)
+{
 	static int list_index, len;
 	char *name;
 	if (!state) {
@@ -45,7 +52,9 @@ char *action_name_generator(const char *text, int state) {
 	return NULL;
 }
 
-void show_actions(const char *filename) {
+void
+show_actions(const char *filename)
+{
 	FILE *f = fopen(filename, "r");
 	if (f == NULL) perror("Error opening file for action_names"), exit(1);
 	int i = 0;
@@ -65,13 +74,18 @@ void show_actions(const char *filename) {
 	fclose(f);
 }
 
-void free_names(void) {
+void
+free_names(void)
+{
 	int i = 0;
 	while (action_names[i] != NULL)
 		free(action_names[i++]);
+	action_names[0] = NULL;
 }
 
-int ask_yes_no(const char *question) {
+int
+ask_yes_no(const char *question)
+{
 	char *response;
 	for ( ; ; ) {
 		response = readline(question);
@@ -90,12 +104,16 @@ int ask_yes_no(const char *question) {
 	}
 }
 
-void to_uppercase(char *str) {
+void
+to_uppercase(char *str)
+{
 	for (int i = 0; str[i] != '\0'; i++)
 		str[i] = toupper((unsigned char) str[i]);
 }
 
-void printheader() {
+void
+printheader(void)
+{
 	const char *header =
 		"\033[90m################################################################################################\n"
 		"\033[90m# " "\033[31m _             _     \033[32m _____   \033[33m _____   \033[34m _____   \033[35m _          \033[36m _____  \033[37m ______ \033[91m _____   _"       "       \033[90m#\n" 
