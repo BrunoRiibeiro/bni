@@ -38,7 +38,7 @@ clean:
 
 # Run with valgrind
 valgrind:
-	valgrind --leak-check=full ./parser test/domain-snake.pddl test/problem-snake.pddl
+	valgrind --leak-check=full ./parser test/domain-forall.pddl test/problem-forall.pddl
 
 # Run without valgrind
 rsk:
