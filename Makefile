@@ -4,6 +4,7 @@ OPT = -O3
 CFLAGS = -Iinclude
 PDDL_FLAGS = -I$(CURDIR)
 DEBUG_FLAGS = -ggdb3
+RUN_FLAG := $(OPT)
 READLINE_FLAGS = -lreadline
 
 # Source and object files
@@ -20,16 +21,16 @@ all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $@ $(DEBUG_FLAGS)
+	$(CC) $(OBJ) -o $@ $(RUN_FLAG)
 
 # Compile source files to object files
 %.o: %.c
-	$(CC) $(OPT) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(RUN_FLAG) -c $< -o $@
 
 # Complile REPL and pddl.c
 .PHONY: repl
 repl:
-	$(CC) $(OPT) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(CURDIR)/pddl.c -o $(PREFIX)/$@
+	$(CC) $(RUN_FLAG) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(CURDIR)/pddl.c -o $(PREFIX)/$@
 
 # Clean up build files
 clean:
