@@ -1,0 +1,10 @@
+bni PDDL Parser and REPL
+========================
+
+A project focused on developing a parser for the PDDL (Planning Domain
+Definition Language) in C. The project involves creating a tool for interpreting
+PDDL, which converts domains and problems into data structures in C, enabling
+efficient manipulation of language elements. Additionally, a REPL
+(Read-Eval-Print Loop) interface is provided, allowing users to define and test
+actions in a simulated environment, validating the preconditions and effects of
+actions in automated planning problems.
