@@ -328,8 +328,6 @@ void parameters(FILE *domain_file, FILE *domainh, FILE *tmpapply, FILE *tmpfile_
 					fprintf(tmpfile_check_show, "\tfor (int i%d = 0; i%d < LENGTH_obj; i%d++) {\n", par_count, par_count, par_count);
 					for (int i = 0; i < par_count; i++) fprintf(tmpfile_check_show, "\t");
 					fprintf(tmpfile_check_show, "\t\ts.%s = i%d;\n", parameters->head->data, par_count);
-					fprintf(tmpapply, "\t\ttoken = strsep(&s, \",\");\n");
-					fprintf(tmpapply, "\t\ttcurts.%s = get_obj_enum(strsep(&token, \")\"));\n", parameters->head->data);
 					size_t toalloc = strlen(parameters->head->data) + 85;
 					char gtp[25], *stringao = malloc(toalloc);
 					snprintf(gtp, 25, ", get_obj_names(i%hd)", par_count);
