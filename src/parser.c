@@ -388,7 +388,11 @@ void precondition(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parent
 					int operator = is_operator(precondition);
 					if (operator != -1) {
 						write_operator(toreturn, operators, operator, &forall_id, flags[0]);
-						if (operator == 3) create_forall_pre_goal(domain_file, domainc, forall_id++, 0), flags[4] = 1;
+						if (operator == 3) {
+							LinkedList *types_list = create_list();
+							create_forall_pre_goal(domain_file, domainc, types_list, forall_id++, 0), flags[4] = 1;
+							free_list(types_list), free(types_list);
+						}
 						flags[0] = 0, flags[3] = 1;
 					} else if (operator == -1 && !flags[1]) {
 						char *preid = list_to_str(precondition);
@@ -445,8 +449,9 @@ void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 						isnot = 0, free_list(effect);
 						continue;
 					} else if (strcmp_list(effect, "forall") == 0) {
-						create_forall_effect(domain_file, domainc, 0);
-						flag = 1, free_list(effect); 
+						LinkedList *types_list = create_list();
+						create_forall_effect(domain_file, domainc, types_list, 0);
+						flag = 1, free_list(effect), free_list(types_list), free(types_list); 
 						continue;
 					} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
 					char *predicate = list_to_str(effect);
@@ -519,7 +524,11 @@ void goal(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_s
 				int operator = is_operator(goal_cond);
 				if (operator != -1) {
 					write_operator(toreturn, operators, operator, &forall_id, flags[0]);
-					if (operator == 3) create_forall_pre_goal(problem_file, domainc, forall_id++, 0);
+					if (operator == 3) {
+						LinkedList *types_list = create_list();
+						create_forall_pre_goal(problem_file, domainc, types_list, forall_id++, 0);
+						free_list(types_list); free(types_list);
+					}
 					flags[0] = 0;
 				} else {
 					char str[256], *cond = list_to_str(goal_cond);
@@ -640,15 +649,16 @@ int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_cou
 		}
 		free_list(word);
 	}
-	free_list(word);
+	free_list(word), free_stack(tokens);
+	free(word);
 	return par_count;
 }
 
 
-void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_args, ...) {
+void create_forall_pre_goal(FILE *toread, FILE *towrite, LinkedList *types_list, int forall_id, int par_count) {
 	for (int i = 0; i < forall_id; i++) fprintf(towrite,  "\t");
 	fprintf(towrite, "bool forall%d = true;\n", forall_id);
-	char token, par_count = 0, flags[5] = {0,0,0,0,0};
+	char token, flags[5] = {0,0,0,0,0};
 	/* flags map
 	 * [0]: flag = padrao é zero toda vez que um ) torna-se igual 1
 	 * [1]: dummyflag = sao ou nao sao os argumentos de um checktrue
@@ -657,13 +667,7 @@ void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_a
 	 * [4]: has_to_verify =
 	 */
 	Stack *parenthesis = create_stack(), *tokens = create_stack(), *operators = create_stack();
-	LinkedList *word = create_list(), *types_list;
-	va_list args;
-	va_start(args, op_args);
-	if (op_args >= 1) par_count = va_arg(args, int);
-	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
-	else types_list = create_list();
-	va_end(args);
+	LinkedList *word = create_list();
 	char fixed = par_count, filename[256];
 	par_count = create_fors(toread, towrite, types_list, par_count);
 	sprintf(filename, "/tmp/forall%d", forall_id);
@@ -678,7 +682,7 @@ void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_a
 					int operator = is_operator(word);
 					if (operator != -1) {
 						write_operator(forfile, operators, operator, &forall_id, flags[0]);
-						if (operator == 3) create_forall_pre_goal(toread, towrite, forall_id, 2, par_count, types_list), flags[4] = 1;
+						if (operator == 3) create_forall_pre_goal(toread, towrite, types_list, forall_id--, par_count), flags[4] = 1;
 						flags[0] = 0, flags[3] = 1;
 					} else if (operator == -1 && !flags[1]) {
 						char *preid = list_to_str(word);
@@ -724,26 +728,21 @@ void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_a
 	if (flags[4]) fprintf(towrite, "))");
 	else if (flags[3]) fprintf(towrite, "true))");
 	else fprintf(towrite, "true)");
-	fprintf(towrite, " forall%d = false;\n", forall_id);
+	fprintf(towrite, " {forall%d = false; break;}\n", forall_id);
 	for (int i = fixed; i < par_count; i++) {
 		for (int ii = 0; ii < par_count; ii++) fprintf(towrite, "\t");
 		fprintf(towrite, "}\n");
 	}
 	free_stack(operators), free_stack(parenthesis), free_stack(tokens);
+	free_list(word);
 	free(word);
 	return;
 }
 
-void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
-	char token, par_count = 0, sig = 0, flag = 0, isnot = 1;
+void create_forall_effect(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count) {
+	char token, sig = 0, flag = 0, isnot = 1;
 	Stack *parenthesis = create_stack(), *tokens = create_stack();
-	LinkedList *word = create_list(), *types_list;
-	va_list args;
-	va_start(args, op_args);
-	if (op_args >= 1) par_count = va_arg(args, int);
-	if (op_args >= 2) types_list = va_arg(args, LinkedList*);
-	else types_list = create_list();
-	va_end(args);
+	LinkedList *word = create_list();
 	char fixed = par_count;
 	par_count = create_fors(toread, towrite, types_list, par_count);
 	while (fscanf(toread, "%c", &token)) { 
@@ -756,7 +755,7 @@ void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 						isnot = 0, free_list(word);
 						continue;
 					} else if (strcmp_list(word, "forall") == 0) { 
-						create_forall_effect(toread, towrite, 2, par_count, types_list); 
+						create_forall_effect(toread, towrite, types_list, par_count); 
 						flag = 1, free_list(word);
 						continue;
 					} else if (strcmp_list(word, "and") == 0) {free_list(word); continue;}
@@ -789,6 +788,7 @@ void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...) {
 		fprintf(towrite, "}\n");
 	}
 	free_stack(parenthesis), free_stack(tokens);
+	free_list(word);
 	free(word);
 }
 

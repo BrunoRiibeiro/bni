@@ -24,8 +24,8 @@ void create_enums(FILE *fc, FILE *fh, SymbolTable *st);
 int is_operator(LinkedList *word);
 void write_operator(FILE *towrite, Stack *operators, int operator, int *forall_id, char flag);
 int create_fors(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count);
-void create_forall_pre_goal(FILE *toread, FILE *towrite, int forall_id, int op_args, ...);
-void create_forall_effect(FILE *toread, FILE *towrite, int op_args, ...);
+void create_forall_pre_goal(FILE *toread, FILE *towrite, LinkedList *types_list, int forall_id, int par_count);
+void create_forall_effect(FILE *toread, FILE *towrite, LinkedList *types_list, int par_count);
 void cat(const char *fname, FILE *f2);
 
 #endif /* PARSER_H */
