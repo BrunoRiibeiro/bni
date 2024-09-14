@@ -21,16 +21,16 @@ all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $@ $(RUN_FLAG)
+	$(CC) $(RUN_FLAG) $(OBJ) -o $@
 
 # Compile source files to object files
 %.o: %.c
-	$(CC) $(CFLAGS) $(RUN_FLAG) -c $< -o $@
+	$(CC) $(RUN_FLAG) $(CFLAGS) -c $< -o $@
 
 # Complile REPL and pddl.c
 .PHONY: repl
 repl:
-	$(CC) $(RUN_FLAG) $(PDDL_FLAGS) $(READLINE_FLAGS) $(REPL_SRC) $(CURDIR)/pddl.c -o $(PREFIX)/$@
+	$(CC) $(RUN_FLAG) $(CURDIR)/pddl.c $(PDDL_FLAGS) $(REPL_SRC) $(READLINE_FLAGS) -o $(PREFIX)/$@
 
 # Clean up build files
 clean:
