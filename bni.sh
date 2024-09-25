@@ -33,7 +33,7 @@ done
 shift $((OPTIND-1))
 
 if [[ "$#" -ne 2 ]]; then
-	echo Usage: "$0" \<domain_file\> \<problem_file\> >&2
+	show_help
 	exit 1
 fi
 
